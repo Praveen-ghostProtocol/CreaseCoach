@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { makeDemo, makePlayer, summarize, validateInnings, suggestPlan, planEvidence, decode, encode, compareSessions, sensorSessions } from '../src/domain.js';
+import { newSensorSession, sampleSwings } from '../src/sensor-session.js';
 
 test('deterministic example separates six innings and five dismissals', () => {
   assert.deepEqual(makeDemo(), makeDemo());
@@ -62,4 +63,24 @@ test('motion metrics reflect deterministic sequences and flag unlike sessions', 
   assert.equal(compareSessions(a,b).comparable, true);
   assert.equal(compareSessions(a,{...b, shot:'Pull'}).comparable, false);
   assert.equal(a.samples.at(-1).t, a.duration);
+});
+
+test('sensor readings keep their simulated source in a backup and plan evidence', () => {
+  const state = {mode:'personal', personal:makePlayer(), demo:makeDemo()};
+  const session = newSensorSession();
+  session.swings.push(...sampleSwings.slice(0,3).map(swing=>({...swing})));
+  session.selected = 2;
+  state.personal.sensorSession = session;
+
+  const restored = decode(encode(state));
+  assert.deepEqual(restored.personal.sensorSession,session);
+  assert.equal(restored.demo.sensorSession,undefined);
+  const [evidence] = planEvidence(restored.personal);
+  assert.equal(evidence.kind,'Simulated');
+  assert.match(evidence.source,/Swing 3$/);
+  assert.match(evidence.text,/434 ms.*692 °\/s.*5\.6 g/);
+  session.selected = null;
+  assert.deepEqual(planEvidence(state.personal),[]);
+  session.selected = 3;
+  assert.throws(()=>decode(encode(state)),/invalid records/);
 });

@@ -6,6 +6,8 @@ CreaseCoach helps developing cricket batters turn recorded outcomes and observat
 
 [Launch the one-click comparison demo](https://praveen-ghostprotocol.github.io/CreaseCoach/?demo=1#video-demo)
 
+[Open the simulated bat-sensor session](https://praveen-ghostprotocol.github.io/CreaseCoach/#sensor-session)
+
 ## Run locally
 
 Use Node.js 22 or later. The core app builds without third-party npm dependencies. Optional AI pose review loads a pinned MediaPipe runtime and model in the browser when requested.
@@ -41,11 +43,17 @@ The [GitHub Pages workflow](.github/workflows/pages.yml) runs tests, builds the 
 | --- | --- |
 | Home | See recorded totals, recent activity and the current practice focus. Switch workspaces or start the tour. |
 | Performance Log | View, add, edit, delete and filter innings. Log runs, balls and outcome first, with shot and session context optional. |
-| Performance Insights | See counts and denominators, inspect the underlying records, and record an assessment. Explore two simulated bat swings in 3D or the SVG fallback. |
+| Performance Insights | See counts and denominators, inspect the underlying records, and record an assessment. Explore simulated bat motion or stream sample bat-sensor readings into a practice plan. |
 | Video Lab | Review a local MP4 or WebM, set and edit batting-phase markers, and compare two clips at the same marker. Capture frames, record timestamped observations, or use optional AI pose review. |
 | Next Session Plan | Choose a focus, review current evidence, adapt up to two activities, and save completion and reflection. |
 
 App state uses versioned browser storage, with separate personal and demo workspaces. Export personal records as JSON from the workspace menu. Import replaces the personal workspace after confirmation. Video bytes stay in the browser session. Clip metadata and notes survive reload, and you can reopen the original file. Demo records, the SVG storyboard, and the bat sensor sequences are illustrative.
+
+### Demonstrate a future bat sensor
+
+Open **Insights → Sensor Session** and select **Start simulated session**. Six sample swings arrive one at a time with swing duration, peak angular speed and peak acceleration. Select a swing and choose **Build a practice plan** to include its simulated readings. The workspace retains the latest session, and a saved plan keeps its own copy of the selected reading.
+
+A future device could use a bat-mounted accelerometer and gyroscope. The prototype illustrates the review workflow with generated readings. Physical development would require calibration and a comparison against reference recordings before interpreting the readings for coaching.
 
 ### AI pose review
 

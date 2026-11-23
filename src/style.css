@@ -184,6 +184,19 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
 .tab.active, .tab:hover { background: var(--lime-soft); border-color: #cbdcbd; }
 .filter-panel .panel-head { margin-bottom: 8px; }
 .filter-panel .filter-bar .field, .filter-panel .filter-bar .btn { margin-bottom: 0; }
+.sensor-toolbar, .sensor-evidence-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 14px; }
+.sensor-toolbar { margin-bottom: 13px; }
+.sensor-status { font-size: .85rem; font-variant-numeric: tabular-nums; }
+.sensor-metrics { margin-bottom: 20px; }
+.sensor-metrics small { font-family: var(--mono); font-size: .48em; letter-spacing: 0; color: var(--muted); white-space: nowrap; }
+.sensor-evidence-head { margin-bottom: 8px; }
+.sensor-evidence-head h2 { font-size: 1.2rem; letter-spacing: -.035em; }
+.sensor-evidence-head p, [data-sensor-empty] { font-size: .85rem; }
+.sensor-choice { display: inline-flex; align-items: center; min-height: 44px; gap: 6px; padding: 5px 2px; cursor: pointer; }
+.sensor-choice input[type=radio] { width: 16px; min-height: 16px; padding: 0; accent-color: var(--focus); }
+.sensor-hardware { border-top: 1px solid var(--line); margin-top: 14px; padding-top: 12px; font-size: .85rem; }
+.sensor-hardware summary { font-weight: 650; cursor: pointer; }
+.sensor-hardware p { max-width: 74ch; color: var(--muted); margin-top: 8px; }
 .evidence-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
 .evidence-grid article { padding: 13px; border: 1px solid var(--line); border-radius: 10px; background: #f8faf6; }
 .evidence-grid .tag { margin-left: 5px; vertical-align: middle; }

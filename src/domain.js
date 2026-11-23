@@ -1,5 +1,6 @@
 import { validMarkers } from './batting-timeline.js';
 import { validDimensions, validProjection } from './anthropometry.js';
+import { sensorEvidence, validSensorSession } from './sensor-session.js';
 
 export const STORAGE = 'creasecoach.workspace';
 export const dismissals = ['Caught', 'Bowled', 'LBW', 'Run out', 'Stumped', 'Other', 'Unknown'];
@@ -182,6 +183,8 @@ export function planEvidence(data, currentPlanId = '') {
     result.push({id:'motion', kind:'Simulated', source:'Bat Motion Explorer · synthetic sequences',
       text:`Illustrative Session B takes ${delta.duration.toFixed(2)} s longer; peak angular velocity changes by ${delta.peak} °/s. Use this as an example of a comparison.`});
   }
+  const sensor = sensorEvidence(data.sensorSession);
+  if (sensor) result.push(sensor);
   const previous = [...data.plans].reverse().find(plan => plan.id !== currentPlanId && plan.complete && plan.reflection.trim());
   if (previous) result.push({id:previous.id, kind:previous.id === 'demo-history' ? 'Simulated' : 'Observed / entered', source:'Previous practice reflection', text:previous.reflection});
   return result;
@@ -213,6 +216,7 @@ export function validWorkspace(data, allowDemo = false) {
   if (!data || !strings(data.profile,['name','hand','level']) || !isText(data.focus) || !isBool(data.motion) ||
       !data.feedback || typeof data.feedback !== 'object' || Array.isArray(data.feedback)) return false;
   if (data.profile.dimensions!==undefined && !validDimensions(data.profile.dimensions,allowDemo)) return false;
+  if (data.sensorSession!==undefined && !validSensorSession(data.sensorSession)) return false;
   if (data.focus && !Object.hasOwn(focuses,data.focus)) return false;
   if (!Object.values(data.feedback).every(item => feedback.includes(item))) return false;
   if (!['innings','videos','plans','logs'].every(key => Array.isArray(data[key]))) return false;

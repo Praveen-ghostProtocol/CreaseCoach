@@ -10,6 +10,7 @@ import { readDimensions } from './anthropometry.js';
 import { frameMeasureDialog } from './measure-frame.js';
 import { startAppUpdates } from './pwa.js';
 import { mountComparison } from './video-compare.js';
+import { mountSensorSession } from './sensor-session-view.js';
 import { clipDimensionEditor, confirmAction, dialog, dialogForm, dimensionFields, inningsEditor, markerEditor, noteEditor, showDialog, showInnings, workspaceDialog } from './dialogs.js';
 
 const destinations = {
@@ -47,6 +48,7 @@ let poseCleanup = null;
 let videoPending = false;
 let videoError = '';
 let motionCleanup = null;
+let sensorCleanup = null;
 let installPrompt = null;
 let tourIndex = -1;
 let toastTimer;
@@ -65,7 +67,8 @@ try {
 } catch { storageIssue = 'Browser storage is unavailable. Edits may be lost after you close this page.'; }
 
 const data = () => state[state.mode];
-const route = () => Object.hasOwn(destinations,location.hash.slice(1)) ? location.hash.slice(1) : 'home';
+const sensorRoute = () => location.hash==='#sensor-session';
+const route = () => sensorRoute() ? 'insights' : Object.hasOwn(destinations,location.hash.slice(1)) ? location.hash.slice(1) : 'home';
 const demo = () => state.mode === 'demo';
 const recordById = key => data().innings.find(row => row.id === key);
 const currentReview = () => getReview(data(),reviewId);
@@ -250,12 +253,14 @@ function render() {
   comparisonCleanup = null;
   motionCleanup?.();
   motionCleanup = null;
+  sensorCleanup?.();
+  sensorCleanup = null;
   const current = route();
   if (current!=='video' || !comparison.open) comparison.projection=false;
   const workspace = data();
   const name = workspace.profile.name;
   const pages = {
-    home:() => home(workspace,demo()), log:() => log(workspace,filterLog), insights:() => insights(workspace,filterInsights,tab),
+    home:() => home(workspace,demo()), log:() => log(workspace,filterLog), insights:() => insights(workspace,filterInsights,sensorRoute()?'sensor':tab),
     video:() => videoView(workspace,reviewId,videoFiles[state.mode],videoPending,comparison), plan:() => plan(workspace,planId,planDraft),
   };
   app.innerHTML = `<aside class="sidebar"><a class="brand" href="#home" aria-label="CreaseCoach home"><img src="./icons/mark.svg" width="38" height="38" alt=""><span><strong>CreaseCoach</strong><small>BATTING WORKSPACE</small></span></a>
@@ -299,6 +304,11 @@ function render() {
   }).catch(() => {
     if (motion.isConnected) motion.innerHTML = '<p class="muted" role="status">The motion explorer could not load. The other insights are still available.</p>';
   });
+  const sensor = document.querySelector('#sensor-session');
+  if (sensor) sensorCleanup = mountSensorSession(sensor,workspace.sensorSession,session=>{
+    workspace.sensorSession = session;
+    persist();
+  },planFromEvidence);
 }
 
 function showVideoError(message) {
@@ -368,6 +378,12 @@ function download(href, fileName) {
   link.click();
 }
 
+function planFromEvidence() {
+  planId = '';
+  planDraft = null;
+  go('plan');
+}
+
 function readPlan(form) {
   const values = new FormData(form);
   const fields = Object.fromEntries(values);
@@ -429,10 +445,17 @@ const actions = {
     activity('Deleted an innings'); persist('Innings deleted.'); dialog.close(); render();
   },
   'clear-filters':({key}) => {if (key==='log') filterLog = {}; else filterInsights = {}; render();},
-  'insights-tab':({tab:value}) => {tab = value; render();},
+  'insights-tab':({tab:value}) => {
+    if (value==='sensor') {
+      if (!sensorRoute()) go('sensor-session');
+      return;
+    }
+    tab = value;
+    go('insights');
+  },
   inspect:({field,value}) => {filterLog = {...filterInsights,[field]:value}; go('log');},
   'new-plan':() => {planId = ''; planDraft = null; render(); document.querySelector('#plan-form select')?.focus();},
-  'plan-from-video':() => {planId = ''; planDraft = null; go('plan');},
+  'plan-from-video':planFromEvidence,
   'open-plan':({id:key}) => {planId = key; planDraft = null; render(); document.querySelector('#plan-form select')?.focus();},
   'delete-plan':({id:key}) => confirmAction('Delete this practice plan?','The saved activities and reflection will be removed from your history.','Delete plan','confirm-plan',`data-id="${e(key)}"`),
   'confirm-plan':({id:key}) => {

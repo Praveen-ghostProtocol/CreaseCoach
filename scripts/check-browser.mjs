@@ -109,6 +109,34 @@ try {
   await page.screenshot({path:`${output}/creasecoach-motion.png`,fullPage:true});
   console.log('PASS WebGL, camera presets, drag orbit, comparison, playback and evidence selection');
 
+  await page.getByRole('button',{name:'Sensor Session',exact:true}).click();
+  await heading('Sensor Session');
+  assert.equal(new URL(page.url()).hash,'#sensor-session');
+  const sensor = page.locator('#sensor-session');
+  const startSensor = sensor.getByRole('button',{name:'Start simulated session'});
+  const endSensor = sensor.getByRole('button',{name:'End session'});
+  const sensorPlan = sensor.getByRole('button',{name:'Build a practice plan'});
+  const swingRows = sensor.locator('tbody tr');
+  assert.ok(await sensorPlan.isDisabled());
+  await startSensor.click();
+  await swingRows.first().waitFor();
+  await endSensor.click();
+  await check(sensor.getByRole('status'),/Session ended/);
+  await startSensor.click();
+  await swingRows.nth(5).waitFor();
+  assert.ok(await endSensor.isDisabled());
+  await check(sensor.getByRole('status'),/6 of 6 swings/);
+  await sensor.getByRole('radio',{name:'Use swing 3 in plan'}).check();
+  await page.reload();
+  assert.ok(await sensor.getByRole('radio',{name:'Use swing 3 in plan'}).isChecked());
+  await sensor.getByRole('button',{name:'Clear selection'}).click();
+  assert.ok(await sensorPlan.isDisabled());
+  await sensor.getByRole('radio',{name:'Use swing 3 in plan'}).check();
+  await page.screenshot({path:`${output}/creasecoach-sensor-session.png`,fullPage:true});
+  await sensorPlan.click();
+  await check(page.locator('.desktop-evidence .evidence-list'),/Simulated\s+Sensor Session demo · Swing 3/);
+  console.log('PASS simulated swing stream, early stop, full session, reload and practice evidence');
+
   await nav('Video Lab');
   await page.locator('#video-element').waitFor({timeout:5000});
   assert.equal(await page.getByLabel('Clip or storyboard').inputValue(),firstSample.id);
@@ -220,6 +248,12 @@ try {
   await page.getByRole('button',{name:'Save practice plan'}).click();
   const savedEvidence=page.locator('.desktop-evidence');
   await check(savedEvidence,/Front foot lands before the bat comes through/);
+  await page.goto(`${base}/#sensor-session`);
+  await sensor.getByRole('radio',{name:'Use swing 4 in plan'}).check();
+  await nav('Next Session Plan');
+  await page.getByRole('button',{name:/Contact consistency.*In progress/}).click();
+  await check(savedEvidence,/Sensor Session demo · Swing 3/);
+  assert.doesNotMatch(await savedEvidence.innerText(),/Sensor Session demo · Swing 4/);
   await savedEvidence.getByRole('button',{name:/Open fixture.webm at/}).click();
   await page.waitForFunction(()=>Math.abs(document.querySelector('#video-element')?.currentTime-.47)<.03);
   await page.locator('.notes-list li').filter({hasText:'Front foot lands before the bat comes through.'}).getByRole('button',{name:'Edit observation'}).click();
@@ -338,6 +372,10 @@ try {
   await nav('Performance Insights');
   await page.getByRole('button',{name:'Bat Motion Explorer'}).click();
   await page.locator('.motion-indicator').waitFor();
+  await page.getByRole('button',{name:'Sensor Session',exact:true}).click();
+  await startSensor.click();
+  await swingRows.first().waitFor();
+  await endSensor.click();
   await context.setOffline(false);
   assert.deepEqual(errors,[]);
   console.log('PASS service worker, manifest, Chromium installability and offline reload including the lazy explorer');
@@ -367,6 +405,11 @@ try {
   await check(mobile.locator('#motion-metrics'),/0\.88 s/);
   await mobile.getByRole('button',{name:'Play swing'}).click();
   await mobile.waitForFunction(()=>Number(document.querySelector('#motion-progress').value)>.05);
+  await mobile.getByRole('button',{name:'Sensor Session',exact:true}).click();
+  await mobile.getByRole('button',{name:'Start simulated session'}).click();
+  await mobile.getByRole('button',{name:'End session'}).click();
+  const sensorDims = await mobile.evaluate(()=>[document.documentElement.scrollWidth,innerWidth]);
+  assert.ok(sensorDims[0]<=sensorDims[1],`Sensor Session overflow: ${sensorDims.join('/')}`);
   assert.deepEqual(mobileErrors,[]);
   console.log('PASS 375px navigation, all five layouts and forced SVG motion fallback');
 
