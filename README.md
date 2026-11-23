@@ -2,6 +2,8 @@
 
 CreaseCoach helps developing cricket batters turn recorded outcomes and observations into one editable practice objective. It is a local-first Progressive Web App for ED5012 Advanced Applications of Human Factors at IIT Madras.
 
+[Open the live app](https://praveen-ghostprotocol.github.io/CreaseCoach/)
+
 ## Run locally
 
 Use Node.js 22 or later. The app has no third-party runtime dependencies.
@@ -27,7 +29,7 @@ Run `npm run test:browser` after building when Playwright and Chromium are avail
 
 ## Publish the static build
 
-Run `npm run build` and publish the contents of `dist/` to an HTTPS static host. Use `dist/` as the publish directory, serve `sw.js` as JavaScript, and keep the manifest and icons alongside `index.html`. Relative asset URLs and hash navigation support deployment under a project subpath such as `/CreaseCoach/`. On GitHub Pages, configure a workflow to build the app and publish `dist/` as the Pages artifact. A source push on its own leaves hosting configuration to the repository owner.
+The [GitHub Pages workflow](.github/workflows/pages.yml) runs tests, builds the app and publishes `dist/` on pushes to `main`. For another HTTPS static host, run `npm run build` and publish the contents of `dist/`. Serve `sw.js` as JavaScript and keep the manifest and icons alongside `index.html`. Relative asset URLs and hash navigation support project subpaths such as `/CreaseCoach/`.
 
 ## The five screens
 
