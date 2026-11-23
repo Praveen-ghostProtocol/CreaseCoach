@@ -1,5 +1,6 @@
-import { storyboardId } from './domain.js';
+import { poseNoteSource, storyboardId } from './domain.js';
 import { button, empty, escapeHtml as e, icon, iconButton, pageHead, panelHead, select, tag, timeLabel } from './ui.js';
+import { poseReviewPanel } from './pose.js';
 
 const storyboard = {id:storyboardId,title:'Batting action storyboard',fileName:'',size:0,modified:0,duration:6,source:'demo_simulated',notes:[]};
 const steps = ['Setup','Backlift','Downswing','Approximate contact','Follow-through'];
@@ -45,10 +46,10 @@ export function videoView(data, reviewId, files, pending) {
       ${review?.notes.length ? `<ul class="notes-list">${[...review.notes].sort((a,b)=>a.time-b.time).map(note=>`<li><div class="note-head">
         <button type="button" class="time-chip" data-action="jump-video" data-time="${note.time}" ${!available?'disabled':''}>${timeLabel(note.time)}</button>${tag(note.event)}
         ${iconButton('Edit observation','edit','edit-note',`data-id="${e(note.id)}"`)}${iconButton('Delete observation','trash','delete-note',`data-id="${e(note.id)}"`)}</div>
-        <strong>${e(note.kind)}</strong><p>${e(note.text)}</p><label class="check"><input type="checkbox" data-note-select="${e(note.id)}" ${note.selected?'checked':''}> Use in practice plan</label></li>`).join('')}</ul>` : `<p class="muted notes-empty">Pause at a moment worth revisiting. A short description and timestamp are enough to start.</p>`}
-      <div class="callout">${icon('info',18)}<p>AI analysis is not configured. Add observations and mark possible explanations for review yourself.</p></div>
+        <strong>${e(note.kind)}</strong>${note.source===poseNoteSource ? tag('AI pose estimate','amber') : ''}<p>${e(note.text)}</p><label class="check"><input type="checkbox" data-note-select="${e(note.id)}" ${note.selected?'checked':''}> Use in practice plan</label></li>`).join('')}</ul>` : `<p class="muted notes-empty">Pause at a moment worth revisiting. A short description and timestamp are enough to start.</p>`}
+      ${isStory || !file ? `<div class="callout">${icon('info',18)}<p>Open a real local video to use AI pose review.</p></div>` : ''}
       ${review && !isStory ? button('Remove clip and notes',{action:'delete-review',variant:'subtle',glyph:'trash'}) : ''}
-    </section></div>`;
+    </section></div>${file && !isStory ? poseReviewPanel() : ''}`;
 }
 
 export function setupPlayback(review, memory, onError) {

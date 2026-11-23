@@ -243,8 +243,22 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
 .time-chip { min-height: 44px; padding: 4px 8px; border: 1px solid transparent; background: var(--soft); border-radius: 7px; font: 650 .76rem var(--mono); }
 .time-chip:hover { border-color: #a7bca2; }
 .notes-list strong, .notes-list p { font-size: .85rem; }
+.notes-list strong + .tag { margin-left: 6px; }
 .notes-list p, .notes-empty { color: var(--muted); }
 .notes-empty { margin-top: 9px; }
+.pose-panel { margin-top: 13px; }
+.pose-panel > .panel-head > .tag { flex: 0 0 auto; }
+.pose-help, .pose-status, .pose-limits { margin: 7px 0; font-size: .84rem; }
+.pose-status { font-weight: 650; }
+.pose-status:empty { display: none; }
+.pose-limits { color: var(--muted); }
+.pose-frames { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0 11px; }
+.pose-frames button { font-variant-numeric: tabular-nums; }
+.pose-frames button[aria-pressed=true] { background: var(--lime-soft); border-color: #cbdcbd; }
+.pose-result { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 14px; align-items: start; }
+.pose-frame { position: relative; width: fit-content; max-width: 100%; margin: 0; overflow: hidden; border-radius: 8px; }
+.pose-frame img { display: block; width: auto; max-width: 100%; height: auto; max-height: min(64vh,460px); }
+.pose-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
 .motion-layout { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(220px,1fr); gap: 14px; }
 .motion-stage canvas, .motion-surface > svg { width: 100%; height: auto; aspect-ratio: 16/9; min-height: 230px; object-fit: contain; display: block; touch-action: none; }
@@ -320,6 +334,7 @@ summary { min-height: 44px; display: list-item; padding: 11px 0; cursor: pointer
 }
 
 @media (max-width: 560px) {
+  .pose-result { grid-template-columns: minmax(0,1fr); }
   .page-heading { align-items: start; flex-direction: column; gap: 8px; }
   .page-heading h1 { font-size: clamp(1.86rem,8.7vw,2.6rem); }
   .page-heading > .btn { min-height: 44px; }

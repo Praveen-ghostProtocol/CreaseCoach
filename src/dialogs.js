@@ -42,13 +42,14 @@ export function showInnings(data, record) {
     <dl class="record-detail">${details.filter(([,value])=>value).map(([label,value])=>`<div><dt>${label}</dt><dd>${e(value)}</dd></div>`).join('')}</dl><div class="button-row dialog-actions">${review ? button('Open related clip',{action:'related-clip',glyph:'video',variant:'outline',attrs:`data-id="${e(review.id)}"`}) : ''}${button('Edit innings',{action:'edit-innings',glyph:'edit',variant:'primary',attrs:`data-id="${e(record.id)}"`})}</div>`);
 }
 
-export function noteEditor(review, note, position) {
+export function noteEditor(review, note, position, draft = null) {
   showDialog(note?'Edit observation':'Add observation',dialogForm('note',`<div class="form-grid">
     ${input('time','Time in seconds',note?.time ?? Math.min(review.duration,Math.round(position*100)/100),`type="number" inputmode="decimal" step="any" min="0" max="${review.duration}" required`)}
     ${select('event','Moment',events,note?.event || 'Other','')}</div>
-    ${select('kind','Evidence type',noteKinds,note?.kind || noteKinds[0],'')}
-    ${area('text','What did you notice?',note?.text,'rows="3" maxlength="600" required autofocus placeholder="Describe one moment in your own words."')}
-    <label class="check"><input type="checkbox" name="selected" ${note?.selected?'checked':''}> Use in practice plan</label>`, 'Save observation',`data-id="${e(note?.id || '')}"`));
+    ${select('kind','Evidence type',noteKinds,note?.kind || draft?.kind || noteKinds[0],'')}
+    ${area('text','What did you notice?',note?.text || draft?.text,'rows="3" maxlength="600" required autofocus placeholder="Describe one moment in your own words."')}
+    ${note?.source || draft?.source ? '<p class="muted">AI-assisted observation. Review or edit the estimate before selecting it for practice.</p>' : ''}
+    <label class="check"><input type="checkbox" name="selected" ${note?.selected?'checked':''}> Use in practice plan</label>`, 'Save observation',`data-id="${e(note?.id || '')}" data-note-source="${e(note?.source || draft?.source || '')}"`));
 }
 
 export function confirmAction(title, description, label, action, attrs = '') {

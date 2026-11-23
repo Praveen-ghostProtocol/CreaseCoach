@@ -82,7 +82,7 @@ export function insights(data, filters, tab) {
 }
 
 function evidenceRows(evidence) {
-  return evidence.length ? `<ul class="evidence-list">${evidence.map(row=>`<li>${tag(row.kind,row.kind==='Simulated'?'violet':row.kind==='Hypothesized'?'amber':'lime')}<div><strong>${e(row.source)}</strong><p>${e(row.text)}</p></div></li>`).join('')}</ul>` : `<p class="muted">No recurring outcome or selected observation yet. You can start with a general review set.</p>`;
+  return evidence.length ? `<ul class="evidence-list">${evidence.map(row=>`<li>${tag(row.kind,row.kind==='Simulated'?'violet':['Hypothesized','AI pose estimate'].includes(row.kind)?'amber':'lime')}<div><strong>${e(row.source)}</strong><p>${e(row.text)}</p></div></li>`).join('')}</ul>` : `<p class="muted">No recurring outcome or selected observation yet. You can start with a general review set.</p>`;
 }
 
 export function plan(data, selectedId, draft = null) {

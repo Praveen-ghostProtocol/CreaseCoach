@@ -1,7 +1,8 @@
-import { STORAGE, decode, encode, events, focuses, makeDemo, makePlayer, noteKinds, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
+import { STORAGE, decode, encode, events, focuses, makeDemo, makePlayer, noteKinds, poseNoteSource, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
 import { button, dateLabel, escapeHtml as e, icon, iconButton, id, initials, input, select, timeLabel } from './ui.js';
 import { home, insights, log, plan } from './views.js';
 import { getReview, inspectVideo, setupPlayback, videoView } from './video.js';
+import { mountPoseReview } from './pose.js';
 import { confirmAction, dialog, dialogForm, inningsEditor, noteEditor, showDialog, showInnings, workspaceDialog } from './dialogs.js';
 
 const destinations = {
@@ -29,6 +30,7 @@ let planId = '';
 let planDraft = null;
 let reviewId = storyboardId;
 let playback = null;
+let poseCleanup = null;
 let videoPending = false;
 let videoError = '';
 let motionCleanup = null;
@@ -123,6 +125,8 @@ function render() {
     : active?.dataset.action === 'insights-tab' ? `[data-tab="${active.dataset.tab}"]` : '';
   playback?.dispose();
   playback = null;
+  poseCleanup?.();
+  poseCleanup = null;
   motionCleanup?.();
   motionCleanup = null;
   const current = route();
@@ -147,7 +151,13 @@ function render() {
   if (current === 'video') {
     const memory = videoMemory[state.mode];
     if (!memory.has(reviewId)) memory.set(reviewId,{});
-    playback = setupPlayback(currentReview(),memory.get(reviewId),showVideoError);
+    const review = currentReview();
+    const clipMemory = memory.get(reviewId);
+    playback = setupPlayback(review,clipMemory,showVideoError);
+    const poseRoot = document.querySelector('#pose-review');
+    if (poseRoot && playback) poseCleanup=mountPoseReview(poseRoot,document.querySelector('#video-element'),playback,review,clipMemory,(time,text)=>{
+      noteEditor(review,null,time,{text,kind:'Needs expert review',source:poseNoteSource});
+    });
     if (videoError) showVideoError(videoError);
   }
   const motion = document.querySelector('#motion-root');
@@ -390,6 +400,7 @@ document.addEventListener('submit',event => {
         if (!data().videos.includes(review)) data().videos.push(review);
         const old = review.notes.find(note=>note.id===form.dataset.id);
         const note = {id:old?.id || id(),time,text,event:values.event,kind:values.kind,selected:values.selected==='on'};
+        if (review.source === 'user_observed_video' && (old?.source || form.dataset.noteSource) === poseNoteSource) note.source=poseNoteSource;
         if (old) Object.assign(old,note); else review.notes.push(note);
         activity(old?'Updated a video observation':'Added a video observation'); message = 'Observation saved.';
         break;

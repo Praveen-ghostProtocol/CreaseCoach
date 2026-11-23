@@ -224,6 +224,30 @@ try {
   await mobile.waitForFunction(()=>Number(document.querySelector('#motion-progress').value)>.05);
   assert.deepEqual(mobileErrors,[]);
   console.log('PASS 375px navigation, all five layouts and forced SVG motion fallback');
+
+  if (process.env.CREASE_POSE_CLIP) {
+    const posePage=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
+    const uploads=[];
+    posePage.on('request',request=>{if (!['GET','HEAD'].includes(request.method())) uploads.push(request.method());});
+    await posePage.goto(`${base}/#video`);
+    await posePage.locator('#video-file').setInputFiles(process.env.CREASE_POSE_CLIP);
+    await posePage.waitForFunction(()=>document.querySelector('#video-element')?.readyState>=2);
+    await posePage.locator('#video-position').fill(process.env.CREASE_POSE_TIME || '4.6');
+    const pose=posePage.locator('#pose-review');
+    await pose.getByRole('button',{name:'Analyze around playhead'}).click();
+    await pose.locator('.pose-overlay path').first().waitFor({state:'attached',timeout:45000});
+    await pose.getByRole('button',{name:'Add pose note'}).click();
+    const poseDialog=posePage.getByRole('dialog');
+    assert.equal(await poseDialog.getByLabel('Use in practice plan').isChecked(),false);
+    await poseDialog.getByLabel('Use in practice plan').check();
+    await poseDialog.getByRole('button',{name:'Save observation'}).click();
+    await posePage.locator('.notes-list').getByText('AI pose estimate',{exact:true}).waitFor();
+    await posePage.getByRole('navigation',{name:'Mobile navigation'}).getByRole('link',{name:'Plan',exact:true}).click();
+    await posePage.getByText('Review current evidence',{exact:false}).click();
+    await posePage.locator('.mobile-evidence').getByText('AI pose estimate',{exact:true}).waitFor();
+    assert.deepEqual(uploads,[]);
+    console.log('PASS real MP4 pose analysis, reviewed evidence and local-only media requests');
+  }
 } finally {
   await browser?.close();
   await desktop?.close();

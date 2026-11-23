@@ -6,7 +6,7 @@ CreaseCoach helps developing cricket batters turn recorded outcomes and observat
 
 ## Run locally
 
-Use Node.js 22 or later. The app has no third-party runtime dependencies.
+Use Node.js 22 or later. The core app builds without third-party npm dependencies. Optional AI pose review loads a pinned MediaPipe runtime and model in the browser when requested.
 
 ```sh
 npm install
@@ -25,7 +25,7 @@ npm run preview
 
 The preview runs at `http://localhost:4173`. After the first successful load, the production service worker can serve the five screens, their assets, and the Bat Motion Explorer offline. In Chromium DevTools, use **Application → Service Workers** to confirm control, then set **Network → Offline** and reload. Check the browser's install menu on the production URL. Browser storage belongs to an origin, so `localhost`, `127.0.0.1`, the development port, and the preview port each have separate records.
 
-Run `npm run test:browser` after building when Playwright and Chromium are available. If they are installed outside the repository, set `CREASE_BROWSER_PACKAGE` to the Playwright package path and `CREASE_BROWSER_EXE` to the Chrome executable. The smoke test starts its own loopback server and writes screenshots to `.browser-test/` by default. Its local playback fixture is a synthetic moving rectangle.
+Run `npm run test:browser` after building when Playwright and Chromium are available. If they are installed outside the repository, set `CREASE_BROWSER_PACKAGE` to the Playwright package path and `CREASE_BROWSER_EXE` to the Chrome executable. The smoke test starts its own loopback server and writes screenshots to `.browser-test/` by default. Its local playback fixture is a synthetic moving rectangle. To also exercise the pose model, set `CREASE_POSE_CLIP` to the path of a local batting clip and `CREASE_POSE_TIME` to a time in seconds with the batter visible.
 
 ## Publish the static build
 
@@ -38,10 +38,14 @@ The [GitHub Pages workflow](.github/workflows/pages.yml) runs tests, builds the 
 | Home | See recorded totals, recent activity and the current practice focus. Switch workspaces or start the tour. |
 | Performance Log | View, add, edit, delete and filter innings. Log runs, balls and outcome first, with shot and session context optional. |
 | Performance Insights | See counts and denominators, inspect the underlying records, and record an assessment. Explore two simulated bat swings in 3D or the SVG fallback. |
-| Video Lab | Open a local MP4 or WebM supported by the browser, pause, seek, capture a frame, and mark timestamped observations for practice. A schematic is available without a clip. |
+| Video Lab | Review a local MP4 or WebM, capture a frame, and mark timestamped observations. AI pose review samples nearby frames from a local clip and draws estimated body landmarks. A schematic is available without a clip. |
 | Next Session Plan | Choose a focus, review current evidence, adapt up to two activities, and save completion and reflection. |
 
-App state uses versioned browser storage, with separate personal and demo workspaces. Export personal records as JSON from the workspace menu. Import replaces the personal workspace after confirmation. Video bytes stay in the browser session. Clip metadata and notes survive reload, and you can reopen the original file. Demo records, the SVG storyboard, and the bat sensor sequences are illustrative. AI analysis is unconfigured and review is manual.
+App state uses versioned browser storage, with separate personal and demo workspaces. Export personal records as JSON from the workspace menu. Import replaces the personal workspace after confirmation. Video bytes stay in the browser session. Clip metadata and notes survive reload, and you can reopen the original file. Demo records, the SVG storyboard, and the bat sensor sequences are illustrative.
+
+### AI pose review
+
+Open a real clip in Video Lab, pause near a batting moment, and select **Analyze around playhead**. The browser fetches MediaPipe Tasks Vision and Pose Landmarker Lite on demand. Frame decoding and inference run on the device, and pose stills stay in the current browser session. The highlighted body landmarks and elbow or knee angles are image-plane estimates. Select a timestamp and use **Add pose note** to review or edit the estimate before saving it. Saving a note for practice retains its AI provenance. The model works best with one prominent batter and visible limbs, and the core manual workflow remains available when model assets are unavailable.
 
 ## Project materials
 
