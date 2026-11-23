@@ -97,6 +97,14 @@ function go(next) {
   else location.hash = next;
 }
 
+function setProjectionView(enabled) {
+  comparison.projection = enabled;
+  app.classList.toggle('projection-view',enabled);
+  const label = app.querySelector('[data-action="toggle-projection"] span');
+  if (label) label.textContent = enabled?'Exit projection view':'Projection view';
+  if (enabled) window.scrollTo(0,0);
+}
+
 function clearMedia(mode) {
   for (const {url} of videoFiles[mode].values()) URL.revokeObjectURL(url);
   videoFiles[mode].clear();
@@ -240,6 +248,7 @@ function render() {
   motionCleanup?.();
   motionCleanup = null;
   const current = route();
+  if (current!=='video' || !comparison.open) comparison.projection=false;
   const workspace = data();
   const name = workspace.profile.name;
   const pages = {
@@ -257,6 +266,7 @@ function render() {
     <nav class="mobile-nav" aria-label="Mobile navigation">${navigation(current,true)}</nav>
     <input type="file" accept=".json,application/json" id="backup-file" class="sr-only" aria-label="Choose backup file" tabindex="-1">`;
   document.title = `${destinations[current][0]} · CreaseCoach`;
+  setProjectionView(Boolean(comparison.projection));
   if (focusSelector && !dialog.open) app.querySelector(focusSelector)?.focus({preventScroll:true});
   if (current === 'video') {
     if (comparison.open) {
@@ -436,6 +446,7 @@ const actions = {
     else go('video');
   },
   'video-compare':openComparison,
+  'toggle-projection':() => setProjectionView(!comparison.projection),
   'load-comparison-demo':loadComparisonDemo,
   'reload-sample-review':() => loadComparisonDemo({compare:false}),
   'video-review':() => {comparison.open=false; videoError=''; render();},
@@ -665,6 +676,13 @@ document.addEventListener('submit',event => {
 dialog.addEventListener('close',() => {
   if (lastTrigger?.isConnected) lastTrigger.focus({preventScroll:true});
   else if (!dialog.open && !app.contains(document.activeElement)) app.querySelector('#content')?.focus({preventScroll:true});
+});
+
+document.addEventListener('keydown',event => {
+  if (event.key==='Escape' && comparison.projection && !dialog.open) {
+    setProjectionView(false);
+    app.querySelector('[data-action="toggle-projection"]')?.focus();
+  }
 });
 
 function launchDemoLink() {

@@ -54,9 +54,10 @@ export function videoView(data, reviewId, files, pending, comparison) {
   const comparing = comparison.open;
   const choices = [[storyboardId,'Schematic demo'],...data.videos.filter(item => item.id !== storyboardId).map(item=>[item.id,item.title])];
   const demoButton=button('Load comparison demo',{action:'load-comparison-demo',glyph:'play',variant:comparing?'primary':'outline',attrs:pending?'disabled':''});
+  const projectionButton=button('Projection view',{action:'toggle-projection',glyph:'diagonal',variant:'outline projection-toggle',attrs:pending?'disabled':''});
   const uploadButton=button('Open local video',{action:'open-video-file',glyph:'upload',variant:'primary',attrs:pending?'disabled':''});
   return `${pageHead('VIDEO LAB',comparing?'Compare batting clips':'Review a batting moment',comparing?'Match two shots at the same phase and move through them together.':'Mark batting phases, review a frame and record what you can see.',
-    `<div class="button-row video-heading-actions">${demoButton}${comparing?'':uploadButton}</div>`)}
+    `<div class="button-row video-heading-actions">${demoButton}${comparing?projectionButton:uploadButton}</div>`)}
     <div class="tab-strip" aria-label="Video Lab modes">${button('Review clip',{action:'video-review',glyph:'video',variant:comparing?'tab':'tab active',attrs:`aria-pressed="${!comparing}"`})}
       ${button('Compare clips',{action:'video-compare',glyph:'activity',variant:comparing?'tab active':'tab',attrs:`aria-pressed="${comparing}"`})}</div>
     <input class="sr-only" id="video-file" type="file" accept="video/mp4,video/webm,.mp4,.webm" tabindex="-1" aria-label="Open local video"><p id="video-load-message" class="upload-message${pending?' is-loading':''}" role="status">${pending==='demo'?'Loading both sample clips…':pending?'Checking local video…':''}</p>

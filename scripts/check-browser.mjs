@@ -48,6 +48,9 @@ try {
   assert.equal(await page.evaluate(()=>document.activeElement.textContent.trim()),'Skip to content');
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(()=>document.activeElement.id),'content');
+  await page.getByText('Published body measurement example',{exact:true}).click();
+  await check(page.locator('.survey-example'),/175\.7 cm[\s\S]*38\.8 cm[\s\S]*46\.6 cm/);
+  await page.getByText('Published body measurement example',{exact:true}).click();
   await page.getByRole('button',{name:'Guided demo'}).click();
   await check(page.getByRole('region',{name:'Guided demo'}),/Demo step 1 of 5/);
   await page.getByRole('button',{name:'Next step'}).click();
@@ -156,6 +159,7 @@ try {
   const chooseSecond=page.waitForEvent('filechooser');
   await page.locator('[data-clip="right"]').getByRole('button',{name:/Open local file|Open another file/}).click();
   await (await chooseSecond).setFiles({name:'follow-up.webm',mimeType:'video/webm',buffer:media});
+  await page.waitForFunction(()=>document.querySelector('#compare-right')?.selectedOptions[0]?.textContent==='follow-up.webm');
   await page.getByRole('button',{name:'Edit markers for Clip B'}).click();
   await saveMarker('backlift',.43);
   await saveMarker('downswing',.61);
@@ -282,8 +286,22 @@ try {
   assert.equal(await page.getByLabel('Comparison playback speed').inputValue(),'.5');
   assert.equal(await page.locator('[data-compare-player]').count(),2);
   await assertTimes(1.60,2.00);
+  const desktopViewport=page.viewportSize();
+  await page.setViewportSize({width:1024,height:600});
+  await page.getByRole('button',{name:'Projection view',exact:true}).click();
+  await page.getByRole('button',{name:'Exit projection view',exact:true}).waitFor();
+  await page.waitForFunction(()=>{
+    const controls=[...document.querySelectorAll('[data-compare-player],[data-compare-play],[data-action="compare-review-frame"]')];
+    return getComputedStyle(document.querySelector('.main-shell')).marginLeft==='0px' &&
+      controls.length===5 && controls.every(control=>control.getBoundingClientRect().bottom<=innerHeight) && document.documentElement.scrollWidth<=innerWidth;
+  },undefined,{timeout:5000});
+  await assertTimes(1.60,2.00);
   await page.getByLabel('Align at marker').selectOption('followThrough');
   await assertTimes(1.90,2.17);
+  await page.getByRole('button',{name:'Exit projection view',exact:true}).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('button',{name:'Projection view',exact:true}).waitFor();
+  await page.setViewportSize(desktopViewport);
   await page.getByText('Clip A anthropometry',{exact:true}).click();
   await check(page.locator('[data-clip="left"] .compare-dimensions'),/Body dimensions unrecorded/);
   await page.getByRole('button',{name:'Edit dimensions for Clip A'}).click();

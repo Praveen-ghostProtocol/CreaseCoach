@@ -15,7 +15,7 @@ function compareClip(side,clip,file,choices,pending) {
     : empty('film',clip?'Video file needed':'Choose a clip',demo?'Load the comparison demo to reopen the sample clips.':clip?'Reselect the original file to view its saved markers.':'Open a local batting clip to fill this panel.')}</div>
     <div class="compare-clip-foot"><output class="timecode" data-clip-time aria-label="${label} video time">${clip?`Duration ${markerTime(clip.duration)}`:'—'}</output>
     <div class="button-row compact">${file?button('Review frame',{action:'compare-review-frame',glyph:'video',variant:'subtle',attrs:`${attrs} data-id="${e(clip.id)}" aria-label="Review frame from ${label}"`}):''}
-    ${clip?button('Edit markers',{action:'compare-edit-markers',glyph:'edit',variant:'subtle',attrs:`data-id="${e(clip.id)}" aria-label="Edit markers for ${label}"`}):''}</div></div>
+    ${clip?button('Edit markers',{action:'compare-edit-markers',glyph:'edit',variant:'subtle',attrs:`${attrs} data-id="${e(clip.id)}" aria-label="Edit markers for ${label}"`}):''}</div></div>
     ${demo?`<p class="sample-credit">Practice footage by <a href="${e(demo.sourceUrl)}" target="_blank" rel="noopener noreferrer">${e(demo.author)}</a> on Pexels.</p>`:''}
     ${clip?compareDimensions(clip,label):''}
   </article>`;

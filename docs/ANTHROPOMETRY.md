@@ -10,6 +10,8 @@ Anthropometry describes body dimensions. CreaseCoach records standing height, ar
 | Fictional example | An illustrative value for the demo player profile. | Arjun’s fictional profile includes a 176 cm standing height. |
 | Unrecorded | Appropriate information is unavailable. | Neither stock clip includes athlete measurement records. |
 
+Home includes one de-identified CDC NHANES 2017–2018 example under **Published body measurement example**. Public-use record 93706 has a standing height of 175.7 cm, an upper-arm length of 38.8 cm and an upper-leg length of 46.6 cm. These values belong to the survey participant. Part 4 of the CDC training videos demonstrates upper-arm and upper-leg measurement. [NHANES Body Measures public-use file and codebook](https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2017/DataFiles/BMX_J.htm) · [CDC training videos](https://wwwn.cdc.gov/Nchs/Nhanes/Nhanes3/AnthropometricVideos.aspx)
+
 ## Demonstrate the workflow
 
 Show **Player anthropometry** on Home, then open the one-click comparison and expand **Clip A anthropometry** or **Clip B anthropometry**. The video subjects’ measurements are unrecorded. If you have permission and measurements for an actual participant, enter them for the appropriate profile or clip, with a source for each value. For a live measurement demonstration, use footage you recorded with a measured ruler in the same plane as the target body dimension.

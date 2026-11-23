@@ -2,6 +2,13 @@ import { bodyMeasures, dimensionSources, measureByKey, projectedLength } from '.
 import { markerTime } from './batting-timeline.js';
 import { button, escapeHtml as e, iconButton, panelHead, tag } from './ui.js';
 
+// CDC NHANES 2017–2018, BMX_J public-use record SEQN 93706.
+const publishedDimensions = {
+  stature:{cm:175.7,source:'measured'},
+  upperArm:{cm:38.8,source:'measured'},
+  upperLeg:{cm:46.6,source:'measured'},
+};
+
 export function dimensionValues(dimensions,emptyText = 'No body dimensions recorded.') {
   const entries=bodyMeasures.filter(({key})=>dimensions?.[key]);
   if (!entries.length) return `<p class="dimension-empty">${e(emptyText)}</p>`;
@@ -15,7 +22,12 @@ export function profileDimensions(profile,demo) {
   return `<section class="panel profile-dimensions">${panelHead('Player anthropometry',demo?'Illustrative profile for Arjun.':'Optional body dimensions for the player profile.',
     demo?tag('Fictional profile','gray'):button('Edit dimensions',{action:'edit-profile',glyph:'edit',variant:'outline'}))}
     ${dimensionValues(profile.dimensions,'Add measured or self-reported dimensions in the profile.')}
-    ${demo?'<p class="dimension-empty">Video clips show different people. Their measurements are recorded separately.</p>':''}</section>`;
+    ${demo?`<p class="dimension-empty">Video clips show different people. Their measurements are recorded separately.</p>
+    <details class="form-details survey-example"><summary>Published body measurement example</summary>
+      <p class="dimension-empty">One de-identified CDC NHANES 2017–2018 survey record. The values describe that survey participant.</p>
+      ${dimensionValues(publishedDimensions)}
+      <p class="dimension-empty"><a href="https://wwwn.cdc.gov/Nchs/Data/Nhanes/Public/2017/DataFiles/BMX_J.htm" target="_blank" rel="noopener noreferrer">CDC source data</a> · <a href="https://wwwn.cdc.gov/Nchs/Nhanes/Nhanes3/AnthropometricVideos.aspx" target="_blank" rel="noopener noreferrer">CDC measurement demonstration</a></p>
+    </details>`:''}</section>`;
 }
 
 function projectionValues(projections,available) {

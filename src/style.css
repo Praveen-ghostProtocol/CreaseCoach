@@ -320,6 +320,21 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
   .compare-page .tab-strip { margin-bottom: 8px; }
   .compare-panel { padding-block: 14px; }
 }
+.projection-view .sidebar,
+.projection-view .topbar,
+.projection-view .mobile-nav,
+.projection-view .tab-strip,
+.projection-view .page-heading .eyebrow,
+.projection-view .page-heading p,
+.projection-view .video-heading-actions [data-action="load-comparison-demo"] { display: none; }
+.projection-view .main-shell { margin-left: 0; }
+.projection-view .compare-page { max-width: 1530px; padding: 14px clamp(14px,3vw,40px) 30px; }
+.projection-view .page-heading { align-items: center; margin-bottom: 10px; }
+.projection-view .page-heading h1 { margin: 0; font-size: clamp(1.6rem,3.5vw,2.2rem); }
+.projection-view .compare-panel { padding: 12px; }
+.projection-view .compare-screen { height: clamp(180px,calc(100dvh - 370px),490px); }
+.survey-example { padding-bottom: 10px; }
+.survey-example a { text-decoration: underline; text-underline-offset: 2px; }
 .notes-list { margin-top: 11px; }
 .notes-list li { padding: 8px 0; border-bottom: 1px solid var(--line); }
 .note-head { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; margin-bottom: 3px; }
@@ -393,6 +408,8 @@ summary { min-height: 44px; display: list-item; padding: 11px 0; cursor: pointer
 }
 
 @media (max-width: 780px) {
+  .projection-toggle { display: none; }
+  .projection-view .projection-toggle { display: inline-flex; }
   .compare-toolbar { grid-template-columns: minmax(0,1fr); }
   .sidebar, .breadcrumbs { display: none; }
   .main-shell { margin: 0; }
