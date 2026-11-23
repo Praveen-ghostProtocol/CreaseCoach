@@ -2,6 +2,7 @@
 
 - Innings and notes depend on accurate player entry. Small samples and missing context restrict which patterns are interpretable. Strike rate aggregates runs and balls only from innings with balls faced greater than zero.
 - Local clip support depends on the browser’s MP4 and WebM decoding capabilities. Clip metadata and notes persist and bytes must be reselected after a reload. JSON backups include structured personal records only.
+- Side-by-side alignment uses manually chosen phase timestamps. Camera viewpoint, frame rate, and any slow motion already encoded in the clips affect what a comparison can establish.
 - The two bat sessions derive from synthetic angle and position samples. Peak speed expresses change on the primary swing axis, and orientation change expresses the first-to-last difference on that axis. A physical sensor, pose estimation from footage and validated joint or whole-body kinematics are future investigations.
 - Practice activities are illustrative, and the rule-based suggestions use a small content library. A saved plan or ticked activity reflects player input. Assessing technical improvement would require a separate longitudinal design.
 - Optional AI pose review samples nearby frames and estimates visible 2D joint locations and projected angles. Camera angle, movement blur and occlusion affect results. It requires browser access to model assets on demand. User-approved model notes retain their source label. Calibrated 3D, automatic shot phases and bat or ball tracking require separate work and validation.

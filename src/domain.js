@@ -1,3 +1,5 @@
+import { validMarkers } from './batting-timeline.js';
+
 export const STORAGE = 'creasecoach.workspace';
 export const dismissals = ['Caught', 'Bowled', 'LBW', 'Run out', 'Stumped', 'Other', 'Unknown'];
 export const phases = ['Powerplay', 'Middle', 'Death'];
@@ -213,6 +215,7 @@ export function validWorkspace(data, allowDemo = false) {
       (item.source === 'user_reported' || allowDemo && item.source === 'demo_simulated'))) return false;
   if (!data.videos.every(item => strings(item,['id','title','fileName','source']) && isNonnegative(item.duration) && isInteger(item.size) &&
       isNonnegative(item.modified) && (item.source === 'user_observed_video' || item.source === 'demo_simulated' && (allowDemo || item.id === storyboardId)) &&
+      (item.markers === undefined || item.source === 'user_observed_video' && validMarkers(item.markers,item.duration)) &&
       Array.isArray(item.notes) && item.notes.every(note => strings(note,['id','text','event','kind']) && noteKinds.includes(note.kind) && events.includes(note.event) &&
         isNonnegative(note.time) && note.time <= item.duration && isBool(note.selected) &&
         (note.source === undefined || item.source === 'user_observed_video' && note.source === poseNoteSource)) && unique(item.notes))) return false;

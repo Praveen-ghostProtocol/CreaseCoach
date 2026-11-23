@@ -38,7 +38,7 @@ The [GitHub Pages workflow](.github/workflows/pages.yml) runs tests, builds the 
 | Home | See recorded totals, recent activity and the current practice focus. Switch workspaces or start the tour. |
 | Performance Log | View, add, edit, delete and filter innings. Log runs, balls and outcome first, with shot and session context optional. |
 | Performance Insights | See counts and denominators, inspect the underlying records, and record an assessment. Explore two simulated bat swings in 3D or the SVG fallback. |
-| Video Lab | Review a local MP4 or WebM, capture a frame, and mark timestamped observations. AI pose review samples nearby frames from a local clip and draws estimated body landmarks. A schematic is available without a clip. |
+| Video Lab | Review a local MP4 or WebM, set and edit batting-phase markers, and compare two clips at the same marker. Capture frames, record timestamped observations, or use optional AI pose review. |
 | Next Session Plan | Choose a focus, review current evidence, adapt up to two activities, and save completion and reflection. |
 
 App state uses versioned browser storage, with separate personal and demo workspaces. Export personal records as JSON from the workspace menu. Import replaces the personal workspace after confirmation. Video bytes stay in the browser session. Clip metadata and notes survive reload, and you can reopen the original file. Demo records, the SVG storyboard, and the bat sensor sequences are illustrative.
@@ -46,6 +46,14 @@ App state uses versioned browser storage, with separate personal and demo worksp
 ### AI pose review
 
 Open a real clip in Video Lab, pause near a batting moment, and select **Analyze around playhead**. The browser fetches MediaPipe Tasks Vision and Pose Landmarker Lite on demand. Frame decoding and inference run on the device, and pose stills stay in the current browser session. The highlighted body landmarks and elbow or knee angles are image-plane estimates. Select a timestamp and use **Add pose note** to review or edit the estimate before saving it. Saving a note for practice retains its AI provenance. The model works best with one prominent batter and visible limbs, and the core manual workflow remains available when model assets are unavailable.
+
+### Compare batting clips on a laptop
+
+1. Open a local clip in **Video Lab → Review clip**. Pause at the start of backlift, downswing or follow-through and save a marker from the playhead. Use the time chip to revisit it or the edit control to change the timestamp.
+2. Repeat with a second clip. You only need one shared marker to start a comparison. If you mark several phases, enter them in batting order.
+3. Open **Compare clips**, choose **Clip A**, **Clip B**, and **Align at marker**. The chosen phase is zero for both clips. Use **Play both**, the shared scrubber, slow playback, or **Go to marker**.
+
+Markers are saved with the clip record on this browser. Keep both source files available to reopen after a reload. Alignment uses the timestamps you chose and playback covers the time available in both clips.
 
 ## Project materials
 

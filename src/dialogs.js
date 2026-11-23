@@ -42,6 +42,15 @@ export function showInnings(data, record) {
     <dl class="record-detail">${details.filter(([,value])=>value).map(([label,value])=>`<div><dt>${label}</dt><dd>${e(value)}</dd></div>`).join('')}</dl><div class="button-row dialog-actions">${review ? button('Open related clip',{action:'related-clip',glyph:'video',variant:'outline',attrs:`data-id="${e(review.id)}"`}) : ''}${button('Edit innings',{action:'edit-innings',glyph:'edit',variant:'primary',attrs:`data-id="${e(record.id)}"`})}</div>`);
 }
 
+export function markerEditor(review,phase,position) {
+  const saved=review.markers?.[phase.key];
+  const initial=saved ?? Math.min(review.duration,Math.round(position*100)/100);
+  showDialog(`${saved===undefined?'Set':'Edit'} ${phase.label.toLowerCase()} marker`,dialogForm('marker',`
+    <p class="muted">${e(review.title)}</p>
+    ${input('time','Time in seconds',initial,`type="number" min="0" max="${review.duration}" step="any" inputmode="decimal" required autofocus`)}
+    <p class="muted">Use the first frame where you can see this phase begin.</p>`, 'Save marker',`data-clip-id="${e(review.id)}" data-phase="${phase.key}"`));
+}
+
 export function noteEditor(review, note, position, draft = null) {
   showDialog(note?'Edit observation':'Add observation',dialogForm('note',`<div class="form-grid">
     ${input('time','Time in seconds',note?.time ?? Math.min(review.duration,Math.round(position*100)/100),`type="number" inputmode="decimal" step="any" min="0" max="${review.duration}" required`)}

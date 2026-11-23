@@ -1,6 +1,8 @@
 import { poseNoteSource, storyboardId } from './domain.js';
 import { button, empty, escapeHtml as e, icon, iconButton, pageHead, panelHead, select, tag, timeLabel } from './ui.js';
 import { poseReviewPanel } from './pose.js';
+import { battingPhases, markerTime } from './batting-timeline.js';
+import { comparisonView } from './video-compare.js';
 
 const storyboard = {id:storyboardId,title:'Batting action storyboard',fileName:'',size:0,modified:0,duration:6,source:'demo_simulated',notes:[]};
 const steps = ['Setup','Backlift','Downswing','Approximate contact','Follow-through'];
@@ -23,16 +25,37 @@ function schematic() {
     </svg>`;
 }
 
-export function videoView(data, reviewId, files, pending) {
+function timelineView(review,available) {
+  const marks=review.markers||{};
+  const count=Object.keys(marks).length;
+  return `<section class="panel batting-timeline" aria-labelledby="batting-timeline-title">
+    <div class="timeline-heading"><div><h3 id="batting-timeline-title">Batting timeline</h3><p>Pause on a phase to mark it from the playhead.</p></div>${tag(`${count}/3 marked`,count?'lime':'gray')}</div>
+    <div class="batting-track" aria-hidden="true"><span></span>${battingPhases.map(({key},index)=>marks[key]===undefined?'':`<i data-phase-dot="${index}" style="--at:${marks[key]/review.duration*100}%"></i>`).join('')}<b data-batting-playhead ${available?'':'hidden'}></b></div>
+    <div class="batting-track-times" aria-hidden="true"><span>0:00.00</span><span>${markerTime(review.duration)}</span></div>
+    <ol class="phase-list">${battingPhases.map(({key,label},index)=>{
+      const time=marks[key];
+      const set=time!==undefined;
+      return `<li data-marker-phase="${key}"><div class="phase-name"><span class="phase-dot" data-phase-dot="${index}"></span><h4>${label}</h4></div>
+        <div class="phase-actions">${set ? `<button type="button" class="time-chip" data-action="jump-video" data-time="${time}" aria-label="Jump to ${label.toLowerCase()}" ${available?'':'disabled'}>${markerTime(time)}</button>` : '<span class="phase-unset">Unmarked</span>'}
+        ${set ? iconButton(`Edit ${label.toLowerCase()} marker`,'edit','edit-marker',`data-phase="${key}"`) + iconButton(`Remove ${label.toLowerCase()} marker`,'trash','remove-marker',`data-phase="${key}"`)
+          : button(`Set ${label.toLowerCase()} marker`,{action:'edit-marker',glyph:'plus',variant:'subtle',attrs:`data-phase="${key}" ${available?'':'disabled'}`})}</div></li>`;
+    }).join('')}</ol>
+  </section>`;
+}
+
+export function videoView(data, reviewId, files, pending, comparison) {
   const review = getReview(data,reviewId);
   const isStory = reviewId === storyboardId;
   const file = files.get(reviewId);
   const available = isStory || file;
+  const comparing = comparison.open;
   const choices = [[storyboardId,'Schematic demo'],...data.videos.filter(item => item.id !== storyboardId).map(item=>[item.id,item.title])];
-  return `${pageHead('VIDEO LAB','Review a batting moment','Pause a clip, record what you can see and select an observation for your next plan.',
-    button('Open local video',{action:'open-video-file',glyph:'upload',variant:'primary',attrs:pending?'disabled':''}))}
+  return `${pageHead('VIDEO LAB',comparing?'Compare batting clips':'Review a batting moment',comparing?'Match two shots at the same phase and move through them together.':'Mark batting phases, review a frame and record what you can see.',
+    comparing?'':button('Open local video',{action:'open-video-file',glyph:'upload',variant:'primary',attrs:pending?'disabled':''}))}
+    <div class="tab-strip" aria-label="Video Lab modes">${button('Review clip',{action:'video-review',glyph:'video',variant:comparing?'tab':'tab active',attrs:`aria-pressed="${!comparing}"`})}
+      ${button('Compare clips',{action:'video-compare',glyph:'activity',variant:comparing?'tab active':'tab',attrs:`aria-pressed="${comparing}"`})}</div>
     <input class="sr-only" id="video-file" type="file" accept="video/mp4,video/webm,.mp4,.webm" tabindex="-1" aria-label="Open local video"><p id="video-load-message" class="upload-message" role="status">${pending?'Checking local video…':''}</p>
-    <div class="video-grid"><section class="panel video-panel">${panelHead('Playback','Local media and schematic review',tag(isStory?'Schematic':file?'Local file':'Media needed',isStory?'violet':'lime'))}
+    ${comparing?comparisonView(data,files,comparison,pending):`<div class="video-grid"><section class="panel video-panel">${panelHead('Playback','Local media and schematic review',tag(isStory?'Schematic':file?'Local file':'Media needed',isStory?'violet':'lime'))}
       ${select('review','Clip or storyboard',choices,reviewId,'','id="review-select"')}
       <div class="player-stage" id="player-stage">${isStory ? schematic() : file ? `<video id="video-element" src="${e(file.url)}" controls playsinline preload="metadata" aria-label="Local batting video"></video>` :
         empty('film','Reselect the local file','Your notes are saved. Choose the original file to reopen this clip.',button('Reselect original',{action:'open-video-file',glyph:'upload',variant:'primary'}))}</div>
@@ -41,7 +64,8 @@ export function videoView(data, reviewId, files, pending) {
         <div class="button-row compact"><label class="speed"><span class="sr-only">Playback speed</span><select id="video-speed" aria-label="Playback speed"><option value=".25">0.25×</option><option value=".5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>${iconButton('Freeze and capture frame','camera','capture-frame')}</div></div>
       ${isStory ? `<div class="story-steps" aria-label="Storyboard moments">${steps.map((label,i)=>button(label,{action:'jump-video',variant:'subtle',attrs:`data-time="${i===4?5:i}"`})).join('')}</div>` : ''}</div>` : ''}
       <p class="video-privacy">${icon('shield',17)} ${isStory ? 'Illustrative sequence. You can practise making timestamped notes here.' : 'Your video stays local. Clip metadata and notes are saved in this browser.'}</p>
-    </section><section class="panel notes-panel">${panelHead('Timestamped observations',`${review?.notes.length || 0} saved · ${isStory ? 'schematic review' : 'manual review'}`)}
+    </section><div class="video-review-sidebar">${!isStory && review ? timelineView(review,Boolean(file)) : ''}
+    <section class="panel notes-panel">${panelHead('Timestamped observations',`${review?.notes.length || 0} saved · ${isStory ? 'schematic review' : 'manual review'}`)}
       ${button('Add observation',{action:'new-note',glyph:'plus',variant:'primary',attrs:!available?'disabled':''})}
       ${review?.notes.length ? `<ul class="notes-list">${[...review.notes].sort((a,b)=>a.time-b.time).map(note=>`<li><div class="note-head">
         <button type="button" class="time-chip" data-action="jump-video" data-time="${note.time}" ${!available?'disabled':''}>${timeLabel(note.time)}</button>${tag(note.event)}
@@ -49,7 +73,7 @@ export function videoView(data, reviewId, files, pending) {
         <strong>${e(note.kind)}</strong>${note.source===poseNoteSource ? tag('AI pose estimate','amber') : ''}<p>${e(note.text)}</p><label class="check"><input type="checkbox" data-note-select="${e(note.id)}" ${note.selected?'checked':''}> Use in practice plan</label></li>`).join('')}</ul>` : `<p class="muted notes-empty">Pause at a moment worth revisiting. A short description and timestamp are enough to start.</p>`}
       ${isStory || !file ? `<div class="callout">${icon('info',18)}<p>Open a real local video to use AI pose review.</p></div>` : ''}
       ${review && !isStory ? button('Remove clip and notes',{action:'delete-review',variant:'subtle',glyph:'trash'}) : ''}
-    </section></div>${file && !isStory ? poseReviewPanel() : ''}`;
+    </section></div></div>${file && !isStory ? poseReviewPanel() : ''}`}`;
 }
 
 export function setupPlayback(review, memory, onError) {
@@ -60,6 +84,7 @@ export function setupPlayback(review, memory, onError) {
   const timeOutput = document.querySelector('#video-time');
   const playButton = document.querySelector('#video-play');
   const speedInput = document.querySelector('#video-speed');
+  const battingPlayhead = document.querySelector('[data-batting-playhead]');
   const body = svg?.querySelector('#story-body');
   const arms = svg?.querySelector('#story-arms');
   const bat = svg?.querySelector('#story-bat');
@@ -91,6 +116,7 @@ export function setupPlayback(review, memory, onError) {
   function display() {
     slider.value = current;
     timeOutput.value = `${timeLabel(current)} / ${timeLabel(duration)}`;
+    if (battingPlayhead) battingPlayhead.style.setProperty('--at',`${current/duration*100}%`);
     if (svg) showPose(current);
     memory.time = current;
   }

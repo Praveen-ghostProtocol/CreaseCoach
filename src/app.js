@@ -3,7 +3,9 @@ import { button, dateLabel, escapeHtml as e, icon, iconButton, id, initials, inp
 import { home, insights, log, plan } from './views.js';
 import { getReview, inspectVideo, setupPlayback, videoView } from './video.js';
 import { mountPoseReview } from './pose.js';
-import { confirmAction, dialog, dialogForm, inningsEditor, noteEditor, showDialog, showInnings, workspaceDialog } from './dialogs.js';
+import { phaseByKey, updatedMarkers } from './batting-timeline.js';
+import { mountComparison } from './video-compare.js';
+import { confirmAction, dialog, dialogForm, inningsEditor, markerEditor, noteEditor, showDialog, showInnings, workspaceDialog } from './dialogs.js';
 
 const destinations = {
   home:['Home','Home','home'], log:['Performance Log','Log','log'], insights:['Performance Insights','Insights','chart'],
@@ -29,6 +31,9 @@ let tab = 'patterns';
 let planId = '';
 let planDraft = null;
 let reviewId = storyboardId;
+let comparison = {open:false,left:'',right:'',phase:'backlift'};
+let comparisonCleanup = null;
+let videoFileSide = '';
 let playback = null;
 let poseCleanup = null;
 let videoPending = false;
@@ -94,7 +99,22 @@ function resetNavigation() {
   planId = '';
   planDraft = null;
   reviewId = storyboardId;
+  comparison = {open:false,left:'',right:'',phase:'backlift'};
+  videoFileSide = '';
   videoError = '';
+}
+
+function openComparison() {
+  const files=videoFiles[state.mode];
+  const real=data().videos.filter(clip=>clip.source==='user_observed_video');
+  const preferred=[...real].sort((a,b)=>Number(files.has(b.id))-Number(files.has(a.id)));
+  if (!real.some(clip=>clip.id===comparison.left)) {
+    comparison.left=real.find(clip=>clip.id===reviewId && clip.id!==comparison.right)?.id || preferred.find(clip=>clip.id!==comparison.right)?.id || '';
+  }
+  if (!real.some(clip=>clip.id===comparison.right)) comparison.right=preferred.find(clip=>clip.id!==comparison.left)?.id || '';
+  comparison.open=true;
+  videoError='';
+  render();
 }
 
 function setWorkspace(mode) {
@@ -121,12 +141,15 @@ function render() {
   const active = document.activeElement;
   const focusSelector = active?.dataset.filter ? `[data-filter="${active.dataset.filter}"][name="${active.name}"]`
     : active?.matches('[data-plan-focus]') ? '[data-plan-focus]'
-    : active?.matches('#review-select') ? '#review-select'
+    : active?.matches('#review-select, #compare-left, #compare-right, #compare-phase') ? `#${active.id}`
+    : ['video-review','video-compare'].includes(active?.dataset.action) ? `[data-action="${active.dataset.action}"]`
     : active?.dataset.action === 'insights-tab' ? `[data-tab="${active.dataset.tab}"]` : '';
   playback?.dispose();
   playback = null;
   poseCleanup?.();
   poseCleanup = null;
+  comparisonCleanup?.();
+  comparisonCleanup = null;
   motionCleanup?.();
   motionCleanup = null;
   const current = route();
@@ -134,7 +157,7 @@ function render() {
   const name = workspace.profile.name;
   const pages = {
     home:() => home(workspace,demo()), log:() => log(workspace,filterLog), insights:() => insights(workspace,filterInsights,tab),
-    video:() => videoView(workspace,reviewId,videoFiles[state.mode],videoPending), plan:() => plan(workspace,planId,planDraft),
+    video:() => videoView(workspace,reviewId,videoFiles[state.mode],videoPending,comparison), plan:() => plan(workspace,planId,planDraft),
   };
   app.innerHTML = `<aside class="sidebar"><a class="brand" href="#home" aria-label="CreaseCoach home"><img src="./icons/mark.svg" width="38" height="38" alt=""><span><strong>CreaseCoach</strong><small>BATTING WORKSPACE</small></span></a>
     <nav class="side-nav" aria-label="Main navigation"><div class="nav-label">WORKSPACE</div>${navigation(current)}</nav>
@@ -143,21 +166,26 @@ function render() {
     <a class="mobile-brand" href="#home" aria-label="CreaseCoach home"><img src="./icons/mark.svg" width="32" height="32" alt=""><strong>CreaseCoach</strong></a>
     <div class="top-actions">${button('Guided demo',{action:'start-demo',glyph:'play',variant:'subtle guide-button'})}
     ${button(demo()?'Demo workspace':'My workspace',{action:'workspace',glyph:'chevron',trailing:true,variant:`outline workspace-button${demo()?' is-demo':''}`,attrs:'aria-haspopup="dialog"'})}</div></header>
-    <main id="content" tabindex="-1">${storageIssue?`<div class="callout" role="status">${icon('info',18)}<p>${e(storageIssue)}</p></div>`:''}${walkthrough()}${pages[current]()}</main></div>
+    <main id="content" tabindex="-1"${current==='video' && comparison.open?' class="compare-page"':''}>${storageIssue?`<div class="callout" role="status">${icon('info',18)}<p>${e(storageIssue)}</p></div>`:''}${walkthrough()}${pages[current]()}</main></div>
     <nav class="mobile-nav" aria-label="Mobile navigation">${navigation(current,true)}</nav>
     <input type="file" accept=".json,application/json" id="backup-file" class="sr-only" aria-label="Choose backup file" tabindex="-1">`;
   document.title = `${destinations[current][0]} · CreaseCoach`;
   if (focusSelector && !dialog.open) app.querySelector(focusSelector)?.focus({preventScroll:true});
   if (current === 'video') {
-    const memory = videoMemory[state.mode];
-    if (!memory.has(reviewId)) memory.set(reviewId,{});
-    const review = currentReview();
-    const clipMemory = memory.get(reviewId);
-    playback = setupPlayback(review,clipMemory,showVideoError);
-    const poseRoot = document.querySelector('#pose-review');
-    if (poseRoot && playback) poseCleanup=mountPoseReview(poseRoot,document.querySelector('#video-element'),playback,review,clipMemory,(time,text)=>{
-      noteEditor(review,null,time,{text,kind:'Needs expert review',source:poseNoteSource});
-    });
+    if (comparison.open) {
+      const aligned=app.querySelector('[data-aligned]');
+      if (aligned) comparisonCleanup=mountComparison(aligned);
+    } else {
+      const memory = videoMemory[state.mode];
+      if (!memory.has(reviewId)) memory.set(reviewId,{});
+      const review = currentReview();
+      const clipMemory = memory.get(reviewId);
+      playback = setupPlayback(review,clipMemory,showVideoError);
+      const poseRoot = document.querySelector('#pose-review');
+      if (poseRoot && playback) poseCleanup=mountPoseReview(poseRoot,document.querySelector('#video-element'),playback,review,clipMemory,(time,text)=>{
+        noteEditor(review,null,time,{text,kind:'Needs expert review',source:poseNoteSource});
+      });
+    }
     if (videoError) showVideoError(videoError);
   }
   const motion = document.querySelector('#motion-root');
@@ -177,7 +205,7 @@ function showVideoError(message) {
   if (feedback) feedback.textContent = message;
 }
 
-async function loadVideo(file) {
+async function loadVideo(file,side) {
   const mode = state.mode;
   const workspace = data();
   videoPending = true;
@@ -195,7 +223,13 @@ async function loadVideo(file) {
     const files = videoFiles[mode];
     if (files.has(review.id)) URL.revokeObjectURL(files.get(review.id).url);
     files.set(review.id,media);
-    if (mode === state.mode) reviewId = review.id;
+    if (mode === state.mode) {
+      if (side==='left' || side==='right') {
+        const other=side==='left'?'right':'left';
+        if (comparison[other]===review.id) showVideoError('That clip is already on the other side. Choose a different file.');
+        else comparison[side]=review.id;
+      } else reviewId=review.id;
+    }
   } catch (error) { if (mode === state.mode) showVideoError(error.message); }
   finally { videoPending = false; if (route()==='video') render(); }
 }
@@ -251,6 +285,7 @@ const actions = {
   },
   'start-demo':() => {
     if (!demo()) setWorkspace('demo');
+    comparison.open=false;
     tourIndex = 0; go('home');
   },
   'demo-close':() => {tourIndex = -1; render();},
@@ -282,8 +317,34 @@ const actions = {
     data().plans = data().plans.filter(item=>item.id!==key); planId = ''; planDraft = null;
     activity('Deleted a practice plan'); persist('Practice plan deleted.'); dialog.close(); render();
   },
-  'related-clip':({id:key}) => {reviewId = key; dialog.close(); go('video');},
-  'open-video-file':() => document.querySelector('#video-file')?.click(),
+  'related-clip':({id:key}) => {reviewId = key; comparison.open=false; dialog.close(); go('video');},
+  'video-compare':openComparison,
+  'video-review':() => {comparison.open=false; videoError=''; render();},
+  'compare-edit-markers':({id:key}) => {
+    if (!getReview(data(),key)) return;
+    reviewId=key; comparison.open=false; videoError=''; render();
+    app.querySelector('[data-action="edit-marker"]')?.focus();
+  },
+  'open-video-file':({side}) => {videoFileSide=side||''; document.querySelector('#video-file')?.click();},
+  'edit-marker':({phase:key}) => {
+    const review=currentReview();
+    const phase=phaseByKey(key);
+    if (review?.source!=='user_observed_video' || !phase) return;
+    playback?.pause();
+    markerEditor(review,phase,playback?.time()||0);
+  },
+  'remove-marker':({phase:key}) => {
+    const phase=phaseByKey(key);
+    const review=currentReview();
+    if (phase && review?.markers?.[key]!==undefined) confirmAction(`Remove ${phase.label.toLowerCase()} marker?`,
+      'This phase will need a new marker before it can align a comparison.','Remove marker','confirm-marker',`data-phase="${key}" data-id="${e(review.id)}"`);
+  },
+  'confirm-marker':({phase:key,id:clipId}) => {
+    const review=getReview(data(),clipId);
+    if (!phaseByKey(key) || review?.markers?.[key]===undefined) return;
+    delete review.markers[key];
+    persist('Batting marker removed.'); dialog.close(); render();
+  },
   'jump-video':({time}) => {playback?.pause(); playback?.seek(+time);},
   'capture-frame':async () => {
     if (!playback) return;
@@ -305,6 +366,8 @@ const actions = {
     if (files.has(reviewId)) URL.revokeObjectURL(files.get(reviewId).url);
     files.delete(reviewId); videoMemory[state.mode].delete(reviewId);
     data().videos = data().videos.filter(item=>item.id!==reviewId);
+    if (comparison.left===reviewId) comparison.left='';
+    if (comparison.right===reviewId) comparison.right='';
     data().innings.forEach(row=>{if (row.videoId===reviewId) row.videoId='';});
     reviewId = storyboardId; videoError = ''; persist('Clip and its observations removed.'); dialog.close(); render();
   },
@@ -350,7 +413,13 @@ document.addEventListener('change',async event => {
   } else if (field.id==='review-select') {
     reviewId = field.value; videoError = ''; render();
   } else if (field.id==='video-file' && field.files.length) {
-    await loadVideo(field.files[0]);
+    const side=videoFileSide;
+    videoFileSide='';
+    await loadVideo(field.files[0],side);
+  } else if (field.matches('[data-compare-clip]')) {
+    comparison[field.name]=field.value; videoError=''; render();
+  } else if (field.matches('[data-compare-phase]')) {
+    comparison.phase=field.value; render();
   } else if (field.dataset.noteSelect) {
     updateNote(field.dataset.noteSelect,(notes,i)=>{notes[i].selected=field.checked;});
     persist(field.checked?'Observation added to practice evidence.':'Observation removed from practice evidence.');
@@ -376,6 +445,13 @@ document.addEventListener('submit',event => {
   let message = '';
   try {
     switch (form.dataset.form || 'plan') {
+      case 'marker': {
+        const review=getReview(data(),form.dataset.clipId);
+        if (review?.source!=='user_observed_video') throw new Error('Open a local batting clip before setting markers.');
+        review.markers=updatedMarkers(review,form.dataset.phase,values.time);
+        message=`${phaseByKey(form.dataset.phase).label} marker saved.`;
+        break;
+      }
       case 'innings': {
         const old = recordById(form.dataset.id);
         const record = {...validateInnings(values),id:old?.id || id(),source:old?.source || 'user_reported'};

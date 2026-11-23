@@ -130,9 +130,67 @@ try {
   await dialog.getByRole('img',{name:'Captured local playback frame'}).waitFor();
   assert.match(await dialog.getByRole('img').getAttribute('src'),/^data:image\/png/);
   await dialog.getByRole('button',{name:'Close dialog'}).click();
+
+  async function saveMarker(phase,time) {
+    const row=page.locator(`[data-marker-phase="${phase}"]`);
+    await row.getByRole('button',{name:/^(Set|Edit) .* marker$/}).click();
+    await dialog.getByLabel('Time in seconds').fill(String(time));
+    await dialog.getByRole('button',{name:'Save marker'}).click();
+  }
+
+  await page.locator('#video-position').fill('0.22');
+  await page.waitForFunction(()=>Math.abs(document.querySelector('#video-element').currentTime-.22)<.02);
+  await page.getByRole('button',{name:'Set backlift marker'}).click();
+  assert.equal(Number(await dialog.getByLabel('Time in seconds').inputValue()),.22);
+  await dialog.getByRole('button',{name:'Save marker'}).click();
+  await saveMarker('downswing',.47);
+  await saveMarker('followThrough',.86);
+  await saveMarker('backlift',.25);
+  await page.getByRole('button',{name:'Jump to backlift'}).click();
+  await page.waitForFunction(()=>Math.abs(document.querySelector('#video-element').currentTime-.25)<.02);
+
+  await page.getByRole('button',{name:'Compare clips',exact:true}).click();
+  const chooseSecond=page.waitForEvent('filechooser');
+  await page.locator('[data-clip="right"]').getByRole('button',{name:'Open local file'}).click();
+  await (await chooseSecond).setFiles({name:'follow-up.webm',mimeType:'video/webm',buffer:media});
+  await page.getByRole('button',{name:'Edit markers for Clip B'}).click();
+  await saveMarker('backlift',.43);
+  await saveMarker('downswing',.61);
+  await saveMarker('followThrough',1.01);
+  await page.getByRole('button',{name:'Compare clips',exact:true}).click();
+  const compare=page.locator('[data-aligned]');
+  await compare.getByRole('button',{name:'Play both'}).waitFor();
+  const assertTimes=async (a,b)=>await page.waitForFunction(([a,b])=>{
+    const [left,right]=document.querySelectorAll('[data-compare-player]');
+    return left?.readyState>=2 && right?.readyState>=2 && !left.seeking && !right.seeking && Math.abs(left.currentTime-a)<.035 && Math.abs(right.currentTime-b)<.035;
+  },[a,b]);
+  await assertTimes(.25,.43);
+  await page.getByLabel('Align at marker').selectOption('downswing');
+  await assertTimes(.47,.61);
+  await compare.getByRole('button',{name:'Step both back 0.1 seconds'}).click();
+  await assertTimes(.37,.51);
+  await compare.getByRole('button',{name:'Go to marker'}).click();
+  await assertTimes(.47,.61);
+  await compare.getByLabel('Comparison playback speed').selectOption('.5');
+  await compare.getByRole('button',{name:'Play both'}).click();
+  await page.waitForFunction(()=>[...document.querySelectorAll('[data-compare-player]')].every((video,index)=>video.currentTime>[.52,.66][index]));
+  await compare.getByRole('button',{name:'Pause both'}).click();
+  const stopped=await compare.locator('video').evaluateAll(videos=>videos.every(video=>video.paused));
+  assert.equal(stopped,true);
+  await page.getByLabel('Align at marker').selectOption('followThrough');
+  await assertTimes(.86,1.01);
+  await page.screenshot({path:`${output}/creasecoach-compare.png`,fullPage:true});
+  await page.getByRole('button',{name:'Edit markers for Clip B'}).click();
+  await page.getByRole('button',{name:'Remove follow-through marker'}).click();
+  await dialog.getByRole('button',{name:'Remove marker',exact:true}).click();
+  await check(page.locator('[data-marker-phase="followThrough"]'),/Unmarked/);
+  await page.getByRole('button',{name:'Compare clips',exact:true}).click();
+  assert.equal(await page.locator('#compare-phase option[value="followThrough"]').evaluate(option=>option.disabled),true);
   await page.reload();
   await page.getByLabel('Clip or storyboard').selectOption({label:'fixture.webm'});
   await heading('Reselect the local file');
+  await check(page.locator('[data-marker-phase="backlift"]'),/0:00\.25/);
+  console.log('PASS desktop phase markers, edits, removal, persistence and aligned dual playback');
   console.log('PASS storyboard and local WebM playback, frame capture, annotation editing and media reselection');
 
   await nav('Next Session Plan');
