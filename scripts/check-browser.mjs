@@ -2,7 +2,9 @@ import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile } from 'node:fs/promises';
+import { comparisonDemoClips } from '../src/demo-clips.js';
 
+const [firstSample,secondSample] = comparisonDemoClips;
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.CREASE_BROWSER_PACKAGE || 'playwright');
 const executablePath = process.env.CREASE_BROWSER_EXE;
@@ -109,7 +111,7 @@ try {
 
   await nav('Video Lab');
   await page.locator('#video-element').waitFor({timeout:5000});
-  assert.equal(await page.getByLabel('Clip or storyboard').inputValue(),'sample-batting-field');
+  assert.equal(await page.getByLabel('Clip or storyboard').inputValue(),firstSample.id);
   await page.getByLabel('Clip or storyboard').selectOption('cricket-storyboard');
   await page.getByRole('button',{name:'Approximate contact',exact:true}).click();
   await check(page.locator('#video-time'),/0:03\.0/);
@@ -285,7 +287,8 @@ try {
   assert.equal(await page.getByLabel('Align at marker').inputValue(),'downswing');
   assert.equal(await page.getByLabel('Comparison playback speed').inputValue(),'.5');
   assert.equal(await page.locator('[data-compare-player]').count(),2);
-  await assertTimes(1.60,2.00);
+  await assertTimes(firstSample.markers.downswing,secondSample.markers.downswing);
+  await check(page.locator('.compare-context'),/same batter and camera position/);
   const desktopViewport=page.viewportSize();
   await page.setViewportSize({width:1024,height:600});
   await page.getByRole('button',{name:'Projection view',exact:true}).click();
@@ -295,9 +298,9 @@ try {
     return getComputedStyle(document.querySelector('.main-shell')).marginLeft==='0px' &&
       controls.length===5 && controls.every(control=>control.getBoundingClientRect().bottom<=innerHeight) && document.documentElement.scrollWidth<=innerWidth;
   },undefined,{timeout:5000});
-  await assertTimes(1.60,2.00);
+  await assertTimes(firstSample.markers.downswing,secondSample.markers.downswing);
   await page.getByLabel('Align at marker').selectOption('followThrough');
-  await assertTimes(1.90,2.17);
+  await assertTimes(firstSample.markers.followThrough,secondSample.markers.followThrough);
   await page.getByRole('button',{name:'Exit projection view',exact:true}).waitFor();
   await page.keyboard.press('Escape');
   await page.getByRole('button',{name:'Projection view',exact:true}).waitFor();
@@ -311,7 +314,8 @@ try {
   await page.getByText('Clip A anthropometry',{exact:true}).click();
   await check(page.locator('[data-clip="left"] .dimension-values'),/178 cm.*Directly measured/s);
   await page.getByRole('button',{name:'Edit markers for Clip A'}).click();
-  await saveMarker('backlift',1.43);
+  const editedBacklift=Number((firstSample.markers.backlift+.03).toFixed(2));
+  await saveMarker('backlift',editedBacklift);
   await page.getByRole('button',{name:'Jump to downswing'}).click();
   await page.getByRole('button',{name:'Measure on frame'}).click();
   const frame=dialog.locator('.measurement-scene');
@@ -325,11 +329,11 @@ try {
   await check(page.locator('.clip-dimensions .projection-list'),/Projected from Test scale \(80 cm\)/);
   await page.reload();
   await page.getByRole('button',{name:'Load comparison demo',exact:true}).click();
-  await assertTimes(1.60,2.00);
+  await assertTimes(firstSample.markers.downswing,secondSample.markers.downswing);
   await page.getByText('Clip A anthropometry',{exact:true}).click();
   await check(page.locator('[data-clip="left"] .compare-dimensions'),/178 cm.*projected/s);
   await page.getByLabel('Align at marker').selectOption('backlift');
-  await assertTimes(1.43,1.80);
+  await assertTimes(editedBacklift,secondSample.markers.backlift);
   console.log('PASS offline one-click demo, pre-set alignment and persisted measurements with source labels');
   await nav('Performance Insights');
   await page.getByRole('button',{name:'Bat Motion Explorer'}).click();

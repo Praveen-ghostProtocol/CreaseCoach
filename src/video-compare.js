@@ -2,7 +2,7 @@ import { alignedTimes, alignment, battingPhases, clampOffset, markerTime, phaseB
 import { button, empty, escapeHtml as e, icon, select } from './ui.js';
 import { isBattingClip } from './domain.js';
 import { compareDimensions } from './anthropometry-view.js';
-import { demoClipById } from './demo-clips.js';
+import { comparisonDemoClips, demoClipById } from './demo-clips.js';
 
 function compareClip(side,clip,file,choices,pending) {
   const label=side==='left'?'Clip A':'Clip B';
@@ -10,9 +10,10 @@ function compareClip(side,clip,file,choices,pending) {
   const attrs=`data-side="${side}" ${pending?'disabled':''}`;
   return `<article class="compare-clip" data-clip="${side}">
     <div class="compare-clip-head">${select(side,label,choices,clip?.id,'Choose a clip',`id="compare-${side}" data-compare-clip`)}
-    ${button(file?'Open another file':clip?'Reselect original':'Open local file',{action:'open-video-file',glyph:'upload',variant:'outline',attrs:`${attrs} ${clip && !file?`data-clip-id="${e(clip.id)}"`:''}`})}</div>
+    ${demo && !file ? button('Reopen sample',{action:'reopen-comparison-clip',glyph:'play',variant:'outline',attrs:`${attrs} data-id="${e(clip.id)}"`})
+      : button(file?'Open another file':clip?'Reselect original':'Open local file',{action:'open-video-file',glyph:'upload',variant:'outline',attrs:`${attrs} ${clip && !file?`data-clip-id="${e(clip.id)}"`:''}`})}</div>
     <div class="compare-screen">${file ? `<video data-compare-player muted playsinline preload="auto" src="${e(file.url)}" aria-label="${label} playback"></video>`
-    : empty('film',clip?'Video file needed':'Choose a clip',demo?'Load the comparison demo to reopen the sample clips.':clip?'Reselect the original file to view its saved markers.':'Open a local batting clip to fill this panel.')}</div>
+    : empty('film',clip?'Video file needed':'Choose a clip',demo?'Reopen this sample to continue at its saved markers.':clip?'Reselect the original file to view its saved markers.':'Open a local batting clip to fill this panel.')}</div>
     <div class="compare-clip-foot"><output class="timecode" data-clip-time aria-label="${label} video time">${clip?`Duration ${markerTime(clip.duration)}`:'—'}</output>
     <div class="button-row compact">${file?button('Review frame',{action:'compare-review-frame',glyph:'video',variant:'subtle',attrs:`${attrs} data-id="${e(clip.id)}" aria-label="Review frame from ${label}"`}):''}
     ${clip?button('Edit markers',{action:'compare-edit-markers',glyph:'edit',variant:'subtle',attrs:`${attrs} data-id="${e(clip.id)}" aria-label="Edit markers for ${label}"`}):''}</div></div>
@@ -31,6 +32,10 @@ export function comparisonView(data,files,choice,pending) {
   const selected=phases.find(phase=>phase.key===choice.phase && phase.range) || phases.find(phase=>phase.range);
   const range=selected?.range;
   const ready=leftFile && rightFile && range;
+  const sourceContext=comparisonDemoClips.every(clip=>[left?.id,right?.id].includes(clip.id))
+    ? 'Two attempts from one net session, with the same batter and camera position. Compare visible movement at the marked phase.'
+    : demoClipById(left?.id) && demoClipById(right?.id)
+      ? 'These practice clips use different recordings. Check the camera and batting context before comparing visible movement.' : '';
   const clipOptions=other=>clips.filter(clip=>clip.id!==other?.id).map(clip=>[clip.id,clip.title]);
   return `<section class="panel compare-panel" aria-label="Side-by-side playback"${ready?` data-aligned data-left-time="${range.left}" data-right-time="${range.right}" data-start="${range.start}" data-end="${range.end}"`:''}>
     <div class="compare-toolbar">
@@ -47,7 +52,7 @@ export function comparisonView(data,files,choice,pending) {
         <div class="button-row compact"><output class="timecode" data-compare-offset>At marker</output><label class="speed"><span class="sr-only">Comparison playback speed</span><select data-compare-speed aria-label="Comparison playback speed">${[.25,.5,1].map(rate=>`<option value="${String(rate).replace(/^0\./,'.')}" ${choice.speed===rate?'selected':''}>${rate}×</option>`).join('')}</select></label></div></div>
       <p class="muted compare-status" role="status" data-compare-status>Loading both clips…</p></div>`:''}</div>
     <div class="compare-grid">${compareClip('left',left,leftFile,clipOptions(right),pending)}${compareClip('right',right,rightFile,clipOptions(left),pending)}</div>
-    ${demoClipById(left?.id) && demoClipById(right?.id) ? '<p class="compare-context">These practice clips show different batters and camera views. The markers align phases for visual review.</p>' : ''}
+    ${sourceContext?`<p class="compare-context">${sourceContext}</p>`:''}
   </section>`;
 }
 

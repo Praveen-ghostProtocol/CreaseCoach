@@ -140,15 +140,18 @@ function openComparison() {
   render();
 }
 
-async function loadComparisonDemo({compare=true} = {}) {
+async function loadComparisonDemo({compare=true,clipId=reviewId} = {}) {
   if (videoPending) return;
+  const target = demoClipById(clipId);
+  const samples = compare ? comparisonDemoClips : target ? [target] : [];
+  if (!samples.length) return;
   const originalMode=state.mode;
   const demoWorkspace=state.demo;
   const files=videoFiles.demo;
   videoPending='demo';
   videoError='';
   render();
-  const loaded=await Promise.allSettled(comparisonDemoClips.map(async clip=>{
+  const loaded=await Promise.allSettled(samples.map(async clip=>{
     const existing=files.get(clip.id);
     if (existing) return {clip,media:existing,reused:true};
     const result=await fetch(demoClipPath(clip),{signal:AbortSignal.timeout(20000)});
@@ -160,7 +163,7 @@ async function loadComparisonDemo({compare=true} = {}) {
   const prepared=loaded.filter(result=>result.status==='fulfilled').map(result=>result.value);
   videoPending=false;
   const active=route()==='video' && state.mode===originalMode && state.demo===demoWorkspace;
-  if (!active || prepared.length!==comparisonDemoClips.length) {
+  if (!active || prepared.length!==samples.length) {
     prepared.filter(item=>!item.reused).forEach(item=>URL.revokeObjectURL(item.media.url));
     if (active) videoError='The comparison demo could not load. Open it once with a connection, then try again.';
     if (route()==='video') render();
@@ -172,7 +175,7 @@ async function loadComparisonDemo({compare=true} = {}) {
       source:demoVideoSource,markers:{...clip.markers}};
     const existing=demoWorkspace.videos.find(item=>item.id===clip.id);
     if (existing) {
-      const prior=comparisonDemoClips[0].id===clip.id && existing.markers;
+      const prior=clip.id==='sample-batting-field' && existing.markers;
       if (prior?.backlift===1.07 && prior.downswing===1.60 && prior.followThrough===1.90) existing.markers={...clip.markers};
       Object.assign(existing,{fileName:record.fileName,size:record.size,modified:record.modified,duration:record.duration});
     }
@@ -332,7 +335,7 @@ async function loadVideo(file,{side,clipId} = {}) {
     }
     const files = videoFiles[mode];
     if (files.has(review.id)) URL.revokeObjectURL(files.get(review.id).url);
-    files.set(review.id,media);
+    files.set(review.id,{...media,size:file.size});
     if (mode === state.mode) {
       if (side==='left' || side==='right') {
         const other=side==='left'?'right':'left';
@@ -449,6 +452,7 @@ const actions = {
   'toggle-projection':() => setProjectionView(!comparison.projection),
   'load-comparison-demo':loadComparisonDemo,
   'reload-sample-review':() => loadComparisonDemo({compare:false}),
+  'reopen-comparison-clip':({id:clipId}) => loadComparisonDemo({compare:false,clipId}),
   'video-review':() => {comparison.open=false; videoError=''; render();},
   'compare-review-frame':({id:key,side}) => {
     const player=app.querySelector(side==='left'?'[data-clip="left"] video':'[data-clip="right"] video');
