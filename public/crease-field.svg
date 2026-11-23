@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 690 380" fill="none">
+  <defs>
+    <pattern id="grid" width="34" height="34" patternUnits="userSpaceOnUse"><path d="M34 0H0v34" stroke="#a7bca2" stroke-opacity=".09"/></pattern>
+    <pattern id="stripe" width="28" height="20" patternUnits="userSpaceOnUse"><path d="M0 0h14v20H0z" fill="#9ab192" fill-opacity=".08"/></pattern>
+    <radialGradient id="glow"><stop stop-color="#a3cf73" stop-opacity=".26"/><stop offset="1" stop-color="#5a8159" stop-opacity="0"/></radialGradient>
+    <linearGradient id="fade"><stop stop-color="white" stop-opacity="0"/><stop offset=".38" stop-color="white"/></linearGradient>
+    <mask id="mask"><path d="M0 0h690v380H0z" fill="url(#fade)"/></mask>
+    <linearGradient id="flight" x1="423" y1="288" x2="528" y2="94" gradientUnits="userSpaceOnUse"><stop stop-color="#d6f779" stop-opacity=".08"/><stop offset="1" stop-color="#d6f779"/></linearGradient>
+  </defs>
+  <g mask="url(#mask)">
+    <path d="M0 0h690v380H0z" fill="url(#grid)"/>
+    <ellipse cx="463" cy="182" rx="293" ry="185" fill="url(#glow)"/>
+    <g transform="translate(420 195) rotate(-24)">
+      <ellipse rx="227" ry="126" fill="url(#stripe)" stroke="#afc7a1" stroke-opacity=".36"/>
+      <ellipse rx="248" ry="146" stroke="#b2c7a9" stroke-opacity=".19"/>
+      <ellipse rx="275" ry="167" stroke="#b2c7a9" stroke-opacity=".15" stroke-dasharray="2 7"/>
+      <ellipse rx="162" ry="89" stroke="#ccdabe" stroke-opacity=".42" stroke-dasharray="3 6"/>
+      <path d="M-110 0h220M0-62V62" stroke="#ccdabe" stroke-opacity=".28" stroke-dasharray="3 5"/>
+      <path d="M-111-17H111v34h-222z" fill="#b1c59d" fill-opacity=".16" stroke="#b1c59d" stroke-opacity=".52"/>
+      <path d="M-97-27v54m194-54v54m-179-44v34m164-34v34" stroke="#d4e6bc" stroke-opacity=".75"/>
+      <circle cx="0" cy="0" r="3" fill="#f0f8dd"/>
+      <g fill="#a9c1a0"><circle cx="-161" cy="37" r="3"/><circle cx="163" cy="-30" r="3"/><circle cx="38" cy="-99" r="2"/><circle cx="83" cy="76" r="2"/><circle cx="-60" cy="87" r="2"/></g>
+    </g>
+    <path d="M348 246c19-83 75-147 193-163" stroke="url(#flight)" stroke-width="2" stroke-dasharray="5 7"/>
+    <circle cx="541" cy="83" r="15" fill="#d6f779" fill-opacity=".12"/>
+    <circle cx="541" cy="83" r="7" fill="#dcfb8c"/>
+    <path d="M541 62v-9h56m-249 193-50 34h-50" stroke="#b2c7a9" stroke-opacity=".56"/>
+    <circle cx="348" cy="246" r="4" fill="#d6f779"/>
+    <path d="M594 49v8m-5-4h10M249 276v8m-5-4h10m339 14v10m-5-5h10" stroke="#c2d3b8" stroke-opacity=".62"/>
+  </g>
+</svg>

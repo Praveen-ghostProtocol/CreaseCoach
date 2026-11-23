@@ -1,0 +1,9 @@
+# Limitations and evidence boundaries
+
+- Innings and notes depend on accurate player entry. Small samples and missing context restrict which patterns are interpretable. Strike rate aggregates runs and balls only from innings with balls faced greater than zero.
+- Local clip support depends on the browser’s MP4 and WebM decoding capabilities. Clip metadata and notes persist and bytes must be reselected after a reload. JSON backups include structured personal records only.
+- The two bat sessions derive from synthetic angle and position samples. Peak speed expresses change on the primary swing axis, and orientation change expresses the first-to-last difference on that axis. A physical sensor, pose estimation from footage and validated joint or whole-body kinematics are future investigations.
+- Practice activities are illustrative, and the rule-based suggestions use a small content library. A saved plan or ticked activity reflects player input. Assessing technical improvement would require a separate longitudinal design.
+- AI analysis is unconfigured. The five screens support manual video review and deterministic recommendations.
+- Browser storage may be cleared by the browser, and simultaneous changes in separate tabs can overwrite a previous version. Personal records are scoped to the device, browser profile and origin.
+- The app shell is available offline after successful production caching. Installation support and video codecs vary across browsers. Cross-device, assistive technology and outdoor use still require evaluation.
