@@ -41,7 +41,7 @@ let reviewId = '';
 let reviewSeeking = null;
 let comparison = {open:false,left:'',right:'',phase:'backlift',speed:1};
 let comparisonCleanup = null;
-let videoFileSide = '';
+let videoFileTarget;
 let playback = null;
 let poseCleanup = null;
 let videoPending = false;
@@ -115,7 +115,7 @@ function resetNavigation() {
   reviewId = '';
   reviewSeeking = null;
   comparison = {open:false,left:'',right:'',phase:'backlift',speed:1};
-  videoFileSide = '';
+  videoFileTarget = undefined;
   videoError = '';
 }
 
@@ -294,19 +294,30 @@ function showVideoError(message) {
   if (feedback) feedback.textContent = message;
 }
 
-async function loadVideo(file,side) {
+async function loadVideo(file,{side,clipId} = {}) {
   const mode = state.mode;
   const workspace = data();
   videoPending = true;
   videoError = '';
   render();
   try {
+    const target = clipId && workspace.videos.find(item=>item.id===clipId);
+    if (clipId && (!target || target.fileName!==file.name || target.size!==file.size)) {
+      throw new Error(target?`Choose the original file, ${target.fileName}, to restore its saved observations.`:'The saved clip is unavailable. Open the file as a new clip.');
+    }
     const media = await inspectVideo(file);
-    if (state[mode] !== workspace) { URL.revokeObjectURL(media.url); return; }
-    let review = workspace.videos.find(item => item.fileName === file.name && item.size === file.size && item.modified === file.lastModified);
+    if (state[mode] !== workspace || target && !workspace.videos.includes(target)) { URL.revokeObjectURL(media.url); return; }
+    if (target && Math.abs(target.duration-media.duration)>.05) {
+      URL.revokeObjectURL(media.url);
+      throw new Error('The duration differs from the saved clip. Choose the original file.');
+    }
+    let review = target || workspace.videos.find(item => item.fileName === file.name && item.size === file.size && item.modified === file.lastModified);
     if (!review) {
       review = {id:id(),title:file.name.slice(0,160),fileName:file.name,size:file.size,modified:file.lastModified,duration:media.duration,source:'user_observed_video',notes:[]};
       workspace.videos.push(review);
+      persist();
+    } else if (target && target.modified!==file.lastModified) {
+      target.modified=file.lastModified;
       persist();
     }
     const files = videoFiles[mode];
@@ -438,7 +449,7 @@ const actions = {
     reviewId=key; comparison.open=false; videoError=''; render();
     app.querySelector('[data-action="edit-marker"]')?.focus();
   },
-  'open-video-file':({side}) => {videoFileSide=side||''; document.querySelector('#video-file')?.click();},
+  'open-video-file':({side,clipId}) => {videoFileTarget={side,clipId}; document.querySelector('#video-file')?.click();},
   'edit-marker':({phase:key}) => {
     const review=currentReview();
     const phase=phaseByKey(key);
@@ -558,9 +569,9 @@ document.addEventListener('change',async event => {
   } else if (field.id==='review-select') {
     reviewId = field.value; reviewSeeking = null; videoError = ''; enterVideo();
   } else if (field.id==='video-file' && field.files.length) {
-    const side=videoFileSide;
-    videoFileSide='';
-    await loadVideo(field.files[0],side);
+    const target=videoFileTarget;
+    videoFileTarget=undefined;
+    await loadVideo(field.files[0],target);
   } else if (field.matches('[data-compare-clip]')) {
     comparison[field.name]=field.value; videoError=''; render();
   } else if (field.matches('[data-compare-phase]')) {

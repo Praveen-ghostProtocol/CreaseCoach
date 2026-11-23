@@ -358,6 +358,30 @@ try {
   await blockedPose.close();
   console.log('PASS blocked pose download leaves manual review available');
 
+  const storageBlocked = await browser.newPage();
+  await storageBlocked.addInitScript(() => {
+    indexedDB.open = () => { throw new DOMException('Storage disabled','SecurityError'); };
+  });
+  await storageBlocked.goto(`${base}/#video`);
+  await storageBlocked.locator('#video-element').waitFor();
+  const recoveryFile = {name:'original.webm',mimeType:'video/webm',buffer:media};
+  await storageBlocked.locator('#video-file').setInputFiles(recoveryFile);
+  await storageBlocked.getByText(/Browser storage could not keep this video/).waitFor();
+  await storageBlocked.getByRole('button',{name:'Add observation'}).click();
+  const recoveryDialog=storageBlocked.getByRole('dialog');
+  await recoveryDialog.getByLabel('What did you notice?').fill('Keep this note with the original clip.');
+  await recoveryDialog.getByRole('button',{name:'Save observation'}).click();
+  await storageBlocked.reload();
+  await storageBlocked.getByRole('heading',{name:'Reselect the local file'}).waitFor();
+  const reselection=storageBlocked.waitForEvent('filechooser');
+  await storageBlocked.getByRole('button',{name:'Reselect original',exact:true}).click();
+  await (await reselection).setFiles(recoveryFile);
+  await storageBlocked.waitForFunction(()=>document.querySelector('#video-element')?.readyState>=2);
+  await storageBlocked.getByText('Keep this note with the original clip.',{exact:true}).waitFor();
+  assert.equal(await storageBlocked.getByRole('option',{name:'original.webm',exact:true}).count(),1);
+  await storageBlocked.close();
+  console.log('PASS reselecting a clip after blocked storage preserves its identity and observations');
+
   if (process.env.CREASE_POSE_CLIP) {
     const posePage=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
     const uploads=[];

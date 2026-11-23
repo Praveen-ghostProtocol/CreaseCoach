@@ -10,7 +10,7 @@ function compareClip(side,clip,file,choices,pending) {
   const attrs=`data-side="${side}" ${pending?'disabled':''}`;
   return `<article class="compare-clip" data-clip="${side}">
     <div class="compare-clip-head">${select(side,label,choices,clip?.id,'Choose a clip',`id="compare-${side}" data-compare-clip`)}
-    ${button(file?'Open another file':clip?'Reselect original':'Open local file',{action:'open-video-file',glyph:'upload',variant:'outline',attrs})}</div>
+    ${button(file?'Open another file':clip?'Reselect original':'Open local file',{action:'open-video-file',glyph:'upload',variant:'outline',attrs:`${attrs} ${clip && !file?`data-clip-id="${e(clip.id)}"`:''}`})}</div>
     <div class="compare-screen">${file ? `<video data-compare-player muted playsinline preload="auto" src="${e(file.url)}" aria-label="${label} playback"></video>`
     : empty('film',clip?'Video file needed':'Choose a clip',demo?'Load the comparison demo to reopen the sample clips.':clip?'Reselect the original file to view its saved markers.':'Open a local batting clip to fill this panel.')}</div>
     <div class="compare-clip-foot"><output class="timecode" data-clip-time aria-label="${label} video time">${clip?`Duration ${markerTime(clip.duration)}`:'—'}</output>
