@@ -223,6 +223,7 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
 .video-grid { grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); align-items: start; }
 .upload-message { min-height: 0; color: #8a332b; margin: -10px 0 9px; }
 .upload-message:empty { display: none; }
+.upload-message.is-loading { color: var(--muted); }
 .player-stage, .motion-stage { position: relative; overflow: hidden; border-radius: 9px; background: #1b281f; color: #f0f5e7; }
 .player-stage video { display: block; width: 100%; max-height: 62vh; background: #182119; }
 .player-stage > svg { width: 100%; height: auto; }
@@ -274,6 +275,37 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
 .compare-scrubber i { position: absolute; top: 22px; left: var(--zero); height: 5px; width: 2px; background: var(--focus); pointer-events: none; }
 .compare-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
 .compare-status { font-size: .8rem; margin-top: 5px; }
+.video-heading-actions { flex: 0 0 auto; justify-content: end; }
+.profile-dimensions { margin-top: 13px; }
+.dimension-values { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(116px,100%),1fr)); gap: 6px; margin: 8px 0; }
+.dimension-values > div { padding: 7px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--soft); }
+.dimension-values dt { color: var(--muted); font-size: .75rem; }
+.dimension-values dd { margin: 1px 0 0; }
+.dimension-values dd strong { display: block; font-variant-numeric: tabular-nums; }
+.dimension-values dd small, .dimension-empty, .sample-credit { color: var(--muted); font-size: .76rem; }
+.dimension-empty { margin: 6px 0; }
+.compare-dimensions, .sample-credit { padding: 0 9px; }
+.sample-credit a { text-decoration: underline; text-underline-offset: 2px; }
+.compare-dimensions { border-top: 1px solid var(--line); }
+.compare-dimensions summary { color: var(--muted); padding: 8px 0; min-height: 37px; font-size: .82rem; }
+.compare-dimensions .btn { margin-bottom: 8px; }
+.dimension-field-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 2px 8px; padding-bottom: 7px; }
+.dimension-field-row .field { margin-bottom: 0; }
+.dimension-field-row > p { grid-column: 1/-1; margin: 0; color: var(--muted); font-size: .75rem; }
+.projection-list { list-style: none; padding: 0; margin: 8px 0; }
+.projection-list li { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 2px 6px; padding: 5px 0; border-top: 1px solid var(--line); font-size: .83rem; }
+.projection-list small { display: block; color: var(--muted); }
+.frame-measure-grid { display: grid; grid-template-columns: minmax(0,1fr) minmax(155px,1fr); gap: 12px; align-items: start; margin: 10px 0; }
+.measurement-scene { position: relative; width: fit-content; max-width: 100%; margin: 0 auto; overflow: hidden; border-radius: 6px; cursor: crosshair; }
+.measurement-scene img { width: auto; height: auto; max-width: 100%; max-height: 44vh; }
+.measurement-scene svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.measure-line, .measure-point, .measure-cursor { fill: none; stroke-width: 2.4; stroke-linecap: round; }
+.measure-line.reference, .measure-point.reference { stroke: #81e6d9; }
+.measure-line.body, .measure-point.body { stroke: #d6f779; }
+.measure-point { stroke-width: 8; }
+.measure-cursor { stroke: #fff; stroke-width: 8; }
+.measure-progress, .measure-estimate { display: block; font-size: .82rem; font-weight: 650; margin: 5px 0; }
+.measure-estimate { color: var(--focus); }
 @media (min-width: 781px) and (max-height: 850px) {
   .compare-page { padding-top: 18px; }
   .compare-page .page-heading { margin-bottom: 11px; }
@@ -380,6 +412,8 @@ summary { min-height: 44px; display: list-item; padding: 11px 0; cursor: pointer
 }
 
 @media (max-width: 560px) {
+  .video-heading-actions { justify-content: start; }
+  .frame-measure-grid { grid-template-columns: minmax(0,1fr); }
   .compare-grid { grid-template-columns: minmax(0,1fr); }
   .pose-result { grid-template-columns: minmax(0,1fr); }
   .page-heading { align-items: start; flex-direction: column; gap: 8px; }

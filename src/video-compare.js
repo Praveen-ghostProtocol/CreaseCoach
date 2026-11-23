@@ -1,21 +1,27 @@
 import { alignedTimes, alignment, battingPhases, clampOffset, markerTime, phaseByKey } from './batting-timeline.js';
 import { button, empty, escapeHtml as e, icon, select } from './ui.js';
+import { isBattingClip } from './domain.js';
+import { compareDimensions } from './anthropometry-view.js';
+import { demoClipById } from './demo-clips.js';
 
 function compareClip(side,clip,file,choices,pending) {
   const label=side==='left'?'Clip A':'Clip B';
+  const demo=demoClipById(clip?.id);
   const attrs=`data-side="${side}" ${pending?'disabled':''}`;
   return `<article class="compare-clip" data-clip="${side}">
     <div class="compare-clip-head">${select(side,label,choices,clip?.id,'Choose a clip',`id="compare-${side}" data-compare-clip`)}
     ${button(file?'Open another file':clip?'Reselect original':'Open local file',{action:'open-video-file',glyph:'upload',variant:'outline',attrs})}</div>
     <div class="compare-screen">${file ? `<video data-compare-player muted playsinline preload="auto" src="${e(file.url)}" aria-label="${label} playback"></video>`
-    : empty('film',clip?'Local file needed':'Choose a clip',clip?'Reselect the original file to view its saved markers.':'Open a local batting clip to fill this panel.')}</div>
+    : empty('film',clip?'Video file needed':'Choose a clip',demo?'Load the comparison demo to reopen the sample clips.':clip?'Reselect the original file to view its saved markers.':'Open a local batting clip to fill this panel.')}</div>
     <div class="compare-clip-foot"><output class="timecode" data-clip-time aria-label="${label} video time">${clip?`Duration ${markerTime(clip.duration)}`:'—'}</output>
     ${clip?button('Edit markers',{action:'compare-edit-markers',glyph:'edit',variant:'subtle',attrs:`data-id="${e(clip.id)}" aria-label="Edit markers for ${label}"`}):''}</div>
+    ${demo?`<p class="sample-credit">Practice footage by <a href="${e(demo.sourceUrl)}" target="_blank" rel="noopener noreferrer">${e(demo.author)}</a> on Pexels.</p>`:''}
+    ${clip?compareDimensions(clip,label):''}
   </article>`;
 }
 
 export function comparisonView(data,files,choice,pending) {
-  const clips=data.videos.filter(clip=>clip.source==='user_observed_video');
+  const clips=data.videos.filter(isBattingClip);
   const left=clips.find(clip=>clip.id===choice.left);
   const right=clips.find(clip=>clip.id===choice.right);
   const leftFile=files.get(left?.id);
@@ -37,13 +43,13 @@ export function comparisonView(data,files,choice,pending) {
         <button type="button" class="btn outline" data-compare-step="-.1" aria-label="Step both back 0.1 seconds" disabled>−0.1s</button>
         <button type="button" class="btn outline" data-compare-step=".1" aria-label="Step both forward 0.1 seconds" disabled>+0.1s</button>
         <button type="button" class="btn outline" data-compare-reset disabled>Go to marker</button></div>
-        <div class="button-row compact"><output class="timecode" data-compare-offset>At marker</output><label class="speed"><span class="sr-only">Comparison playback speed</span><select data-compare-speed aria-label="Comparison playback speed"><option value=".25">0.25×</option><option value=".5">0.5×</option><option value="1" selected>1×</option></select></label></div></div>
+        <div class="button-row compact"><output class="timecode" data-compare-offset>At marker</output><label class="speed"><span class="sr-only">Comparison playback speed</span><select data-compare-speed aria-label="Comparison playback speed">${[.25,.5,1].map(rate=>`<option value="${String(rate).replace(/^0\./,'.')}" ${choice.speed===rate?'selected':''}>${rate}×</option>`).join('')}</select></label></div></div>
       <p class="muted compare-status" role="status" data-compare-status>Loading both clips…</p></div>`:''}</div>
     <div class="compare-grid">${compareClip('left',left,leftFile,clipOptions(right),pending)}${compareClip('right',right,rightFile,clipOptions(left),pending)}</div>
   </section>`;
 }
 
-export function mountComparison(root) {
+export function mountComparison(root,onSpeed) {
   const range={left:+root.dataset.leftTime,right:+root.dataset.rightTime,start:+root.dataset.start,end:+root.dataset.end};
   const videos=[...root.querySelectorAll('[data-compare-player]')];
   const clocks=[...root.querySelectorAll('[data-clip-time]')];
@@ -119,7 +125,9 @@ export function mountComparison(root) {
   slider.addEventListener('input',()=>{pause();seek(Number(slider.value));});
   root.querySelectorAll('[data-compare-step]').forEach(control=>control.onclick=()=>{pause();seek(offset+Number(control.dataset.compareStep));});
   root.querySelector('[data-compare-reset]').onclick=()=>{pause();seek(0);};
-  speed.onchange=()=>{videos.forEach(video=>{video.playbackRate=Number(speed.value);});};
+  const applySpeed=()=>{videos.forEach(video=>{video.playbackRate=Number(speed.value);});};
+  speed.onchange=()=>{applySpeed();onSpeed(Number(speed.value));};
+  applySpeed();
   play.onclick=async () => {
     if (running) {pause();return;}
     if (offset>=range.end-.005) seek(range.start);

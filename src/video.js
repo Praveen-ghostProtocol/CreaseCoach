@@ -3,6 +3,8 @@ import { button, empty, escapeHtml as e, icon, iconButton, pageHead, panelHead, 
 import { poseReviewPanel } from './pose.js';
 import { battingPhases, markerTime } from './batting-timeline.js';
 import { comparisonView } from './video-compare.js';
+import { clipDimensions } from './anthropometry-view.js';
+import { demoClipById } from './demo-clips.js';
 
 const storyboard = {id:storyboardId,title:'Batting action storyboard',fileName:'',size:0,modified:0,duration:6,source:'demo_simulated',notes:[]};
 const steps = ['Setup','Backlift','Downswing','Approximate contact','Follow-through'];
@@ -47,18 +49,21 @@ export function videoView(data, reviewId, files, pending, comparison) {
   const review = getReview(data,reviewId);
   const isStory = reviewId === storyboardId;
   const file = files.get(reviewId);
+  const sample=demoClipById(reviewId);
   const available = isStory || file;
   const comparing = comparison.open;
   const choices = [[storyboardId,'Schematic demo'],...data.videos.filter(item => item.id !== storyboardId).map(item=>[item.id,item.title])];
+  const demoButton=button('Load comparison demo',{action:'load-comparison-demo',glyph:'play',variant:comparing?'primary':'outline',attrs:pending?'disabled':''});
+  const uploadButton=button('Open local video',{action:'open-video-file',glyph:'upload',variant:'primary',attrs:pending?'disabled':''});
   return `${pageHead('VIDEO LAB',comparing?'Compare batting clips':'Review a batting moment',comparing?'Match two shots at the same phase and move through them together.':'Mark batting phases, review a frame and record what you can see.',
-    comparing?'':button('Open local video',{action:'open-video-file',glyph:'upload',variant:'primary',attrs:pending?'disabled':''}))}
+    `<div class="button-row video-heading-actions">${demoButton}${comparing?'':uploadButton}</div>`)}
     <div class="tab-strip" aria-label="Video Lab modes">${button('Review clip',{action:'video-review',glyph:'video',variant:comparing?'tab':'tab active',attrs:`aria-pressed="${!comparing}"`})}
       ${button('Compare clips',{action:'video-compare',glyph:'activity',variant:comparing?'tab active':'tab',attrs:`aria-pressed="${comparing}"`})}</div>
-    <input class="sr-only" id="video-file" type="file" accept="video/mp4,video/webm,.mp4,.webm" tabindex="-1" aria-label="Open local video"><p id="video-load-message" class="upload-message" role="status">${pending?'Checking local video…':''}</p>
+    <input class="sr-only" id="video-file" type="file" accept="video/mp4,video/webm,.mp4,.webm" tabindex="-1" aria-label="Open local video"><p id="video-load-message" class="upload-message${pending?' is-loading':''}" role="status">${pending==='demo'?'Loading both sample clips…':pending?'Checking local video…':''}</p>
     ${comparing?comparisonView(data,files,comparison,pending):`<div class="video-grid"><section class="panel video-panel">${panelHead('Playback','Local media and schematic review',tag(isStory?'Schematic':file?'Local file':'Media needed',isStory?'violet':'lime'))}
       ${select('review','Clip or storyboard',choices,reviewId,'','id="review-select"')}
       <div class="player-stage" id="player-stage">${isStory ? schematic() : file ? `<video id="video-element" src="${e(file.url)}" controls playsinline preload="metadata" aria-label="Local batting video"></video>` :
-        empty('film','Reselect the local file','Your notes are saved. Choose the original file to reopen this clip.',button('Reselect original',{action:'open-video-file',glyph:'upload',variant:'primary'}))}</div>
+        sample?empty('film','Reopen demo footage','Load the comparison demo to reopen both sample clips.',button('Reopen demo clips',{action:'load-comparison-demo',glyph:'play',variant:'primary',attrs:pending?'disabled':''})):empty('film','Reselect the local file','Your notes are saved. Choose the original file to reopen this clip.',button('Reselect original',{action:'open-video-file',glyph:'upload',variant:'primary'}))}</div>
       ${available ? `<div class="playback"><label><span class="sr-only">Playback position in seconds</span><input id="video-position" type="range" min="0" max="${review.duration}" step="0.01" value="0"></label>
         <div class="playback-row"><div class="button-row compact"><button id="video-play" class="icon-btn" type="button" aria-label="Play">${icon('play',17)}</button><button id="video-back" type="button" class="btn outline" aria-label="Back 0.1 seconds">−0.1s</button><button id="video-forward" type="button" class="btn outline" aria-label="Forward 0.1 seconds">+0.1s</button><output id="video-time" class="timecode">0:00.0 / ${timeLabel(review.duration)}</output></div>
         <div class="button-row compact"><label class="speed"><span class="sr-only">Playback speed</span><select id="video-speed" aria-label="Playback speed"><option value=".25">0.25×</option><option value=".5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>${iconButton('Freeze and capture frame','camera','capture-frame')}</div></div>
@@ -73,7 +78,7 @@ export function videoView(data, reviewId, files, pending, comparison) {
         <strong>${e(note.kind)}</strong>${note.source===poseNoteSource ? tag('AI pose estimate','amber') : ''}<p>${e(note.text)}</p><label class="check"><input type="checkbox" data-note-select="${e(note.id)}" ${note.selected?'checked':''}> Use in practice plan</label></li>`).join('')}</ul>` : `<p class="muted notes-empty">Pause at a moment worth revisiting. A short description and timestamp are enough to start.</p>`}
       ${isStory || !file ? `<div class="callout">${icon('info',18)}<p>Open a real local video to use AI pose review.</p></div>` : ''}
       ${review && !isStory ? button('Remove clip and notes',{action:'delete-review',variant:'subtle',glyph:'trash'}) : ''}
-    </section></div></div>${file && !isStory ? poseReviewPanel() : ''}`}`;
+    </section>${!isStory && review?clipDimensions(review,Boolean(file)):''}</div></div>${file && !isStory ? poseReviewPanel() : ''}`}`;
 }
 
 export function setupPlayback(review, memory, onError) {
@@ -170,13 +175,18 @@ export function setupPlayback(review, memory, onError) {
   return {seek, pause, time:() => video?.currentTime ?? current, dispose:pause, async capture() {
     pause();
     if (svg) return {data:`data:image/svg+xml;charset=utf-8,${encodeURIComponent(new XMLSerializer().serializeToString(svg))}`, ext:'svg'};
-    if (!video || video.readyState < 2 || !video.videoWidth) throw new Error('Wait for the video frame to finish loading.');
-    if (video.seeking) {
+    if (!video) throw new Error('Open a video before capturing a frame.');
+    if (video.seeking || video.readyState<2) {
       await new Promise((resolve,reject) => {
-        const timeout = setTimeout(() => reject(new Error('The frame is still loading. Try capturing it again.')),2500);
-        video.addEventListener('seeked',() => {clearTimeout(timeout); resolve();},{once:true});
+        const events=['seeked','loadeddata','canplay'];
+        const clear=()=>{clearTimeout(timeout);events.forEach(event=>video.removeEventListener(event,ready));};
+        const ready=()=>{if (!video.seeking && video.readyState>=2) {clear();resolve();}};
+        const timeout=setTimeout(()=>{clear();reject(new Error('The frame is still loading. Try capturing it again.'));},2500);
+        events.forEach(event=>video.addEventListener(event,ready));
+        ready();
       });
     }
+    if (!video.videoWidth) throw new Error('The video frame is unavailable.');
     const canvas = document.createElement('canvas');
     canvas.width = Math.min(1280,video.videoWidth);
     canvas.height = Math.round(canvas.width*video.videoHeight/video.videoWidth);

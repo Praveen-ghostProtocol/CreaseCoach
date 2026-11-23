@@ -1,5 +1,6 @@
 import { feedback, filterInnings, focuses, patternText, suggestPlan, summarize } from './domain.js';
 import { area, button, dateLabel, empty, escapeHtml as e, filterBar, firstName, icon, input, inningsTable, pageHead, panelHead, rate, select, sortedInnings, tag, trend, whole } from './ui.js';
+import { profileDimensions } from './anthropometry-view.js';
 
 export function home(data, isDemo) {
   const stats = summarize(data.innings);
@@ -42,9 +43,9 @@ export function home(data, isDemo) {
       </section>
       <section class="panel">${panelHead('What CreaseCoach knows','Your records, marked observations and calculated summaries.')}
         <p class="muted">Use patterns to decide what to look at next. A possible explanation remains a question for review.</p>
-        <div class="button-row">${button('Insights',{to:'insights',glyph:'chart',variant:'outline'})}${button('Video Lab',{to:'video',glyph:'video',variant:'outline'})}</div>
+        <div class="button-row">${button('Insights',{to:'insights',glyph:'chart',variant:'outline'})}${button('Video Lab',{to:'video',glyph:'video',variant:'outline'})}${button('Load comparison demo',{to:'video-demo',glyph:'play',variant:'outline'})}</div>
       </section>
-    </div>`;
+    </div>${profileDimensions(data.profile,isDemo)}`;
 }
 
 export function log(data, filters) {

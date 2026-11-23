@@ -10,7 +10,7 @@
 
 The course overview defines human factors through the interaction of people and system elements and covers cognitive ergonomics, perception, demand-resource optimisation, accessibility of interaction and physical performance topics (PDF pages 5–9). Its user–work characteristics diagram connects each lens to a different kind of demand (PDF page 13, slide 14).
 
-- **Anthropometry.** The interface uses reachable mobile navigation and large primary targets. Field tests could evaluate operability across hand sizes, grip preferences and devices. The prototype made no anthropometric measurements.
+- **Anthropometry.** The app records standing height, arm span, shoulder breadth and limb lengths per subject, with a source per value. A frame-based tool records a projected length using a known reference in the same plane. The fictional profile and unmeasured video subjects remain distinct. Evaluate measurement error against a direct reference before drawing comparisons. [Measurement workflow](ANTHROPOMETRY.md)
 - **Biomechanics.** The explorer demonstrates descriptive movement for a bat using synthetic positions and orientations. A future device would require mounting and calibration, controlled recording, validation against a suitable reference, and a repeatability assessment.
 - **Information handling.** The log reduces the need to reconstruct an innings from memory. Charts show n, sparse data stays visible, and the plan tags calculated, observed, hypothesised and simulated sources.
 - **Functional evaluation.** Trace whether players can enter a record, find the relevant evidence and leave with a specific plan. Measure success, errors and task time.

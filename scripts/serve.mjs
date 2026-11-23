@@ -7,14 +7,14 @@ const portIndex = process.argv.indexOf('--port');
 const port = portIndex < 0 ? (built ? 4173 : 5173) : Number(process.argv[portIndex+1]);
 const root = resolve(built ? 'dist' : '.');
 const types = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
-  '.svg':'image/svg+xml','.png':'image/png','.webmanifest':'application/manifest+json','.json':'application/json'};
+  '.svg':'image/svg+xml','.png':'image/png','.mp4':'video/mp4','.webmanifest':'application/manifest+json','.json':'application/json'};
 
 const server = createServer(async (request,response) => {
   try {
     const requested = decodeURIComponent(new URL(request.url,'http://localhost').pathname);
     const relative = requested === '/' ? 'index.html' : requested.slice(1);
     if (!built && relative === 'sw.js') {response.writeHead(204); response.end(); return;}
-    if (!/^(index\.html|sw\.js|manifest\.webmanifest|(?:src|icons)\/[\w./-]+|crease-field\.svg)$/.test(relative) ||
+    if (!/^(index\.html|sw\.js|manifest\.webmanifest|(?:src|icons)\/[\w./-]+|demo\/[\w-]+\.mp4|crease-field\.svg)$/.test(relative) ||
         relative.split('/').some(part => part === '..' || part.startsWith('.'))) throw new Error('Not found');
     const file = resolve(root,relative);
     if (!file.startsWith(`${root}${sep}`)) throw new Error('Not found');

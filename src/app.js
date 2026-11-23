@@ -1,11 +1,14 @@
-import { STORAGE, decode, encode, events, focuses, makeDemo, makePlayer, noteKinds, poseNoteSource, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
+import { STORAGE, decode, demoVideoSource, encode, events, focuses, isBattingClip, makeDemo, makePlayer, noteKinds, poseNoteSource, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
 import { button, dateLabel, escapeHtml as e, icon, iconButton, id, initials, input, select, timeLabel } from './ui.js';
 import { home, insights, log, plan } from './views.js';
 import { getReview, inspectVideo, setupPlayback, videoView } from './video.js';
 import { mountPoseReview } from './pose.js';
 import { phaseByKey, updatedMarkers } from './batting-timeline.js';
+import { comparisonDemoClips, demoClipPath } from './demo-clips.js';
+import { readDimensions } from './anthropometry.js';
+import { frameMeasureDialog } from './measure-frame.js';
 import { mountComparison } from './video-compare.js';
-import { confirmAction, dialog, dialogForm, inningsEditor, markerEditor, noteEditor, showDialog, showInnings, workspaceDialog } from './dialogs.js';
+import { clipDimensionEditor, confirmAction, dialog, dialogForm, dimensionFields, inningsEditor, markerEditor, noteEditor, showDialog, showInnings, workspaceDialog } from './dialogs.js';
 
 const destinations = {
   home:['Home','Home','home'], log:['Performance Log','Log','log'], insights:['Performance Insights','Insights','chart'],
@@ -22,7 +25,8 @@ const app = document.querySelector('#app');
 const toast = document.querySelector('#toast');
 const videoFiles = {demo:new Map(),personal:new Map()};
 const videoMemory = {demo:new Map(),personal:new Map()};
-let state = {mode:'demo',demo:makeDemo(),personal:makePlayer()};
+const initialDemo=makeDemo();
+let state = {mode:'demo',demo:initialDemo,personal:makePlayer()};
 let storageIssue = '';
 let storedDataInvalid = false;
 let filterLog = {};
@@ -31,7 +35,7 @@ let tab = 'patterns';
 let planId = '';
 let planDraft = null;
 let reviewId = storyboardId;
-let comparison = {open:false,left:'',right:'',phase:'backlift'};
+let comparison = {open:false,left:'',right:'',phase:'backlift',speed:1};
 let comparisonCleanup = null;
 let videoFileSide = '';
 let playback = null;
@@ -48,7 +52,10 @@ let pendingBackup;
 try {
   const raw = localStorage.getItem(STORAGE);
   if (raw) {
-    try { state = decode(raw); }
+    try {
+      state = decode(raw);
+      state.demo.profile.dimensions ??= initialDemo.profile.dimensions;
+    }
     catch { storedDataInvalid = true; storageIssue = 'Existing workspace records could not be read. Edits are temporary until storage is restored.'; }
   }
 } catch { storageIssue = 'Browser storage is unavailable. Edits may be lost after you close this page.'; }
@@ -99,14 +106,14 @@ function resetNavigation() {
   planId = '';
   planDraft = null;
   reviewId = storyboardId;
-  comparison = {open:false,left:'',right:'',phase:'backlift'};
+  comparison = {open:false,left:'',right:'',phase:'backlift',speed:1};
   videoFileSide = '';
   videoError = '';
 }
 
 function openComparison() {
   const files=videoFiles[state.mode];
-  const real=data().videos.filter(clip=>clip.source==='user_observed_video');
+  const real=data().videos.filter(isBattingClip);
   const preferred=[...real].sort((a,b)=>Number(files.has(b.id))-Number(files.has(a.id)));
   if (!real.some(clip=>clip.id===comparison.left)) {
     comparison.left=real.find(clip=>clip.id===reviewId && clip.id!==comparison.right)?.id || preferred.find(clip=>clip.id!==comparison.right)?.id || '';
@@ -114,6 +121,48 @@ function openComparison() {
   if (!real.some(clip=>clip.id===comparison.right)) comparison.right=preferred.find(clip=>clip.id!==comparison.left)?.id || '';
   comparison.open=true;
   videoError='';
+  render();
+}
+
+async function loadComparisonDemo() {
+  if (videoPending) return;
+  const originalMode=state.mode;
+  const demoWorkspace=state.demo;
+  const files=videoFiles.demo;
+  videoPending='demo';
+  videoError='';
+  render();
+  const loaded=await Promise.allSettled(comparisonDemoClips.map(async clip=>{
+    const existing=files.get(clip.id);
+    if (existing) return {clip,media:existing,reused:true};
+    const result=await fetch(demoClipPath(clip),{signal:AbortSignal.timeout(20000)});
+    if (!result.ok) throw new Error('Sample clip unavailable.');
+    const blob=await result.blob();
+    const file=new File([blob],clip.fileName,{type:'video/mp4',lastModified:0});
+    return {clip,media:{...await inspectVideo(file),size:file.size},reused:false};
+  }));
+  const prepared=loaded.filter(result=>result.status==='fulfilled').map(result=>result.value);
+  videoPending=false;
+  const active=route()==='video' && state.mode===originalMode && state.demo===demoWorkspace;
+  if (!active || prepared.length!==comparisonDemoClips.length) {
+    prepared.filter(item=>!item.reused).forEach(item=>URL.revokeObjectURL(item.media.url));
+    if (active) videoError='The comparison demo could not load. Open it once with a connection, then try again.';
+    if (route()==='video') render();
+    return;
+  }
+  if (!demo()) {state.mode='demo';resetNavigation();tourIndex=-1;}
+  for (const {clip,media} of prepared) {
+    const record={id:clip.id,title:clip.title,fileName:clip.fileName,size:media.size,modified:0,duration:media.duration,
+      source:demoVideoSource,markers:{...clip.markers}};
+    const existing=demoWorkspace.videos.find(item=>item.id===clip.id);
+    if (existing) Object.assign(existing,record);
+    else demoWorkspace.videos.push({...record,notes:[]});
+    files.set(clip.id,media);
+  }
+  const [left,right]=comparisonDemoClips;
+  reviewId=left.id;
+  comparison={open:true,left:left.id,right:right.id,phase:'downswing',speed:.5};
+  persist('Comparison demo ready.');
   render();
 }
 
@@ -174,7 +223,7 @@ function render() {
   if (current === 'video') {
     if (comparison.open) {
       const aligned=app.querySelector('[data-aligned]');
-      if (aligned) comparisonCleanup=mountComparison(aligned);
+      if (aligned) comparisonCleanup=mountComparison(aligned,speed=>{comparison.speed=speed;});
     } else {
       const memory = videoMemory[state.mode];
       if (!memory.has(reviewId)) memory.set(reviewId,{});
@@ -267,7 +316,8 @@ const actions = {
   'switch-demo':() => setWorkspace('demo'),
   'switch-personal':() => setWorkspace('personal'),
   'edit-profile':() => showDialog('Edit batting profile',dialogForm('profile',`${input('name','Display name',data().profile.name,'maxlength="70" required autofocus')}
-    ${select('hand','Batting hand',['Right-hand batter','Left-hand batter'],data().profile.hand,'Not recorded')}${input('level','Experience or role',data().profile.level,'maxlength="90" placeholder="Club player, school player…"')}`, 'Save profile')),
+    ${select('hand','Batting hand',['Right-hand batter','Left-hand batter'],data().profile.hand,'Not recorded')}${input('level','Experience or role',data().profile.level,'maxlength="90" placeholder="Club player, school player…"')}
+    <details class="form-details" ${Object.keys(data().profile.dimensions||{}).length?'open':''}><summary>Player anthropometry <span>Optional</span></summary>${dimensionFields(data().profile.dimensions)}</details>`, 'Save profile')),
   'reset-demo':() => confirmAction('Reset demo records?','Changes made in the demo workspace will be removed.','Reset demo','confirm-reset'),
   'confirm-reset':() => {
     clearMedia('demo'); state.demo = makeDemo(); resetNavigation(); dialog.close(); persist('Demo records restored.'); render();
@@ -319,6 +369,7 @@ const actions = {
   },
   'related-clip':({id:key}) => {reviewId = key; comparison.open=false; dialog.close(); go('video');},
   'video-compare':openComparison,
+  'load-comparison-demo':loadComparisonDemo,
   'video-review':() => {comparison.open=false; videoError=''; render();},
   'compare-edit-markers':({id:key}) => {
     if (!getReview(data(),key)) return;
@@ -329,7 +380,7 @@ const actions = {
   'edit-marker':({phase:key}) => {
     const review=currentReview();
     const phase=phaseByKey(key);
-    if (review?.source!=='user_observed_video' || !phase) return;
+    if (!isBattingClip(review) || !phase) return;
     playback?.pause();
     markerEditor(review,phase,playback?.time()||0);
   },
@@ -346,6 +397,36 @@ const actions = {
     persist('Batting marker removed.'); dialog.close(); render();
   },
   'jump-video':({time}) => {playback?.pause(); playback?.seek(+time);},
+  'edit-clip-dimensions':({id:key}) => {
+    const clip=getReview(data(),key);
+    if (isBattingClip(clip)) clipDimensionEditor(clip);
+  },
+  'measure-frame':async () => {
+    const player=playback;
+    const review=currentReview();
+    if (!player || !isBattingClip(review)) return;
+    if (review.projections?.length>=20) {notify('Remove a saved frame estimate before adding another.');return;}
+    try {
+      const frame=await player.capture();
+      if (player!==playback) return;
+      frameMeasureDialog(review,frame,player.time(),result=>{
+        if (currentReview()!==review) return;
+        review.projections ||= [];
+        review.projections.push({id:id(),...result});
+        persist('Projected frame estimate saved.'); dialog.close(); render();
+      });
+    } catch (error) {notify(error.message);}
+  },
+  'remove-projection':({id:key}) => {
+    if (currentReview()?.projections?.some(row=>row.id===key)) confirmAction('Remove this frame estimate?',
+      'This estimate will be removed from the clip.','Remove estimate','confirm-projection',`data-id="${e(key)}"`);
+  },
+  'confirm-projection':({id:key}) => {
+    const review=currentReview();
+    if (!review?.projections?.some(row=>row.id===key)) return;
+    review.projections=review.projections.filter(row=>row.id!==key);
+    persist('Frame estimate removed.'); dialog.close(); render();
+  },
   'capture-frame':async () => {
     if (!playback) return;
     const player = playback;
@@ -447,7 +528,7 @@ document.addEventListener('submit',event => {
     switch (form.dataset.form || 'plan') {
       case 'marker': {
         const review=getReview(data(),form.dataset.clipId);
-        if (review?.source!=='user_observed_video') throw new Error('Open a local batting clip before setting markers.');
+        if (!isBattingClip(review)) throw new Error('Open a batting clip before setting markers.');
         review.markers=updatedMarkers(review,form.dataset.phase,values.time);
         message=`${phaseByKey(form.dataset.phase).label} marker saved.`;
         break;
@@ -463,8 +544,15 @@ document.addEventListener('submit',event => {
       case 'profile': {
         const name = String(values.name || '').trim();
         if (!name) throw new Error('Enter a display name.');
-        data().profile = {name,hand:values.hand,level:values.level.trim()};
+        data().profile = {name,hand:values.hand,level:values.level.trim(),dimensions:readDimensions(values)};
         message = 'Profile updated.';
+        break;
+      }
+      case 'clip-dimensions': {
+        const review=getReview(data(),form.dataset.clipId);
+        if (!isBattingClip(review)) throw new Error('Choose a batting clip first.');
+        review.dimensions=readDimensions(values);
+        message='Clip dimensions saved.';
         break;
       }
       case 'note': {
@@ -476,7 +564,7 @@ document.addEventListener('submit',event => {
         if (!data().videos.includes(review)) data().videos.push(review);
         const old = review.notes.find(note=>note.id===form.dataset.id);
         const note = {id:old?.id || id(),time,text,event:values.event,kind:values.kind,selected:values.selected==='on'};
-        if (review.source === 'user_observed_video' && (old?.source || form.dataset.noteSource) === poseNoteSource) note.source=poseNoteSource;
+        if (isBattingClip(review) && (old?.source || form.dataset.noteSource) === poseNoteSource) note.source=poseNoteSource;
         if (old) Object.assign(old,note); else review.notes.push(note);
         activity(old?'Updated a video observation':'Added a video observation'); message = 'Observation saved.';
         break;
@@ -504,7 +592,15 @@ dialog.addEventListener('close',() => {
   else if (!dialog.open && !app.contains(document.activeElement)) app.querySelector('#content')?.focus({preventScroll:true});
 });
 
+function launchDemoLink() {
+  if (location.hash!=='#video-demo') return false;
+  history.replaceState(null,'','#video');
+  loadComparisonDemo();
+  return true;
+}
+
 window.addEventListener('hashchange',() => {
+  if (launchDemoLink()) return;
   if (location.hash==='#content') {app.querySelector('#content')?.focus(); return;}
   render();
   window.scrollTo(0,0);
@@ -514,7 +610,7 @@ document.querySelector('.skip').addEventListener('click',event=>{event.preventDe
 window.addEventListener('beforeinstallprompt',event => {event.preventDefault(); installPrompt=event;});
 window.addEventListener('appinstalled',() => {installPrompt=null; notify('CreaseCoach installed.');});
 
-render();
+if (!launchDemoLink()) render();
 
 if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
   const worker = new URL('../sw.js',import.meta.url);

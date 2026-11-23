@@ -1,4 +1,5 @@
 import { validMarkers } from './batting-timeline.js';
+import { validDimensions, validProjection } from './anthropometry.js';
 
 export const STORAGE = 'creasecoach.workspace';
 export const dismissals = ['Caught', 'Bowled', 'LBW', 'Run out', 'Stumped', 'Other', 'Unknown'];
@@ -8,6 +9,8 @@ export const formats = ['T20', 'ODI', 'Test', 'Other'];
 export const events = ['Setup', 'Backlift', 'Downswing', 'Approximate contact', 'Follow-through', 'Other'];
 export const noteKinds = ['Direct observation', 'Player interpretation', 'Possible explanation', 'Needs expert review'];
 export const poseNoteSource = 'ai_pose';
+export const demoVideoSource = 'demo_sample_video';
+export const isBattingClip = clip => clip?.source==='user_observed_video' || clip?.source===demoVideoSource;
 export const feedback = ['This observation is correct', 'This observation needs correction', 'I’m not sure', 'Ask a coach'];
 
 export function today() {
@@ -63,7 +66,9 @@ export const storyboardId = 'cricket-storyboard';
 
 export function makeDemo() {
   const data = makePlayer();
-  data.profile = {name:'Arjun Mehta', hand:'Right-hand batter', level:'Developing club player'};
+  data.profile = {name:'Arjun Mehta', hand:'Right-hand batter', level:'Developing club player', dimensions:{
+    stature:{cm:176,source:'illustrative'},armSpan:{cm:179,source:'illustrative'},shoulderBreadth:{cm:41,source:'illustrative'},upperArm:{cm:31,source:'illustrative'},
+  }};
   data.innings = [
     ['d1','2026-10-24',18,19,'Bowled','Powerplay','Defensive','Forward defence'],
     ['d2','2026-10-29',34,25,'Caught','Middle','Aerial','Lofted drive'],
@@ -206,6 +211,7 @@ const unique = items => new Set(items.map(item => item.id)).size === items.lengt
 export function validWorkspace(data, allowDemo = false) {
   if (!data || !strings(data.profile,['name','hand','level']) || !isText(data.focus) || !isBool(data.motion) ||
       !data.feedback || typeof data.feedback !== 'object' || Array.isArray(data.feedback)) return false;
+  if (data.profile.dimensions!==undefined && !validDimensions(data.profile.dimensions,allowDemo)) return false;
   if (data.focus && !Object.hasOwn(focuses,data.focus)) return false;
   if (!Object.values(data.feedback).every(item => feedback.includes(item))) return false;
   if (!['innings','videos','plans','logs'].every(key => Array.isArray(data[key]))) return false;
@@ -214,11 +220,13 @@ export function validWorkspace(data, allowDemo = false) {
       (item.out ? dismissals.includes(item.dismissal) : !item.dismissal) &&
       (item.source === 'user_reported' || allowDemo && item.source === 'demo_simulated'))) return false;
   if (!data.videos.every(item => strings(item,['id','title','fileName','source']) && isNonnegative(item.duration) && isInteger(item.size) &&
-      isNonnegative(item.modified) && (item.source === 'user_observed_video' || item.source === 'demo_simulated' && (allowDemo || item.id === storyboardId)) &&
-      (item.markers === undefined || item.source === 'user_observed_video' && validMarkers(item.markers,item.duration)) &&
+      isNonnegative(item.modified) && (item.source === 'user_observed_video' || allowDemo && item.source===demoVideoSource || item.source === 'demo_simulated' && (allowDemo || item.id === storyboardId)) &&
+      (item.markers === undefined || isBattingClip(item) && validMarkers(item.markers,item.duration)) &&
+      (item.dimensions === undefined || isBattingClip(item) && validDimensions(item.dimensions)) &&
+      (item.projections === undefined || isBattingClip(item) && Array.isArray(item.projections) && item.projections.length<=20 && item.projections.every(row=>validProjection(row,item.duration)) && unique(item.projections)) &&
       Array.isArray(item.notes) && item.notes.every(note => strings(note,['id','text','event','kind']) && noteKinds.includes(note.kind) && events.includes(note.event) &&
         isNonnegative(note.time) && note.time <= item.duration && isBool(note.selected) &&
-        (note.source === undefined || item.source === 'user_observed_video' && note.source === poseNoteSource)) && unique(item.notes))) return false;
+        (note.source === undefined || isBattingClip(item) && note.source === poseNoteSource)) && unique(item.notes))) return false;
   if (!data.plans.every(item => strings(item,['id','focus','objective','criterion','next','reflection']) && validDate(item.created) &&
       Object.hasOwn(focuses,item.focus) && (!item.next || validDate(item.next)) && isBool(item.complete) &&
       Array.isArray(item.activities) && item.activities.length > 0 && item.activities.length <= 2 &&

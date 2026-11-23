@@ -4,6 +4,8 @@ CreaseCoach helps developing cricket batters turn recorded outcomes and observat
 
 [Open the live app](https://praveen-ghostprotocol.github.io/CreaseCoach/)
 
+[Launch the one-click comparison demo](https://praveen-ghostprotocol.github.io/CreaseCoach/#video-demo)
+
 ## Run locally
 
 Use Node.js 22 or later. The core app builds without third-party npm dependencies. Optional AI pose review loads a pinned MediaPipe runtime and model in the browser when requested.
@@ -49,11 +51,17 @@ Open a real clip in Video Lab, pause near a batting moment, and select **Analyze
 
 ### Compare batting clips on a laptop
 
+Select **Load comparison demo** for two bundled practice excerpts with pre-set, editable phase markers. The app opens them at Downswing and sets half-speed playback. The production service worker caches the clips with the app. [Demo footage and credits](docs/DEMO_MEDIA.md)
+
 1. Open a local clip in **Video Lab → Review clip**. Pause at the start of backlift, downswing or follow-through and save a marker from the playhead. Use the time chip to revisit it or the edit control to change the timestamp.
 2. Repeat with a second clip. You only need one shared marker to start a comparison. If you mark several phases, enter them in batting order.
 3. Open **Compare clips**, choose **Clip A**, **Clip B**, and **Align at marker**. The chosen phase is zero for both clips. Use **Play both**, the shared scrubber, slow playback, or **Go to marker**.
 
 Markers are saved with the clip record on this browser. Keep both source files available to reopen after a reload. Alignment uses the timestamps you chose and playback covers the time available in both clips.
+
+### Anthropometry
+
+Record centimetre values for the player profile and for each batter in a clip, with a measured or self-reported source per value. **Measure on frame** captures a still and uses a known reference span to estimate a 2D projected body dimension. The result stays separate from the directly entered body dimensions. [Anthropometry workflow and evaluation](docs/ANTHROPOMETRY.md)
 
 ## Project materials
 

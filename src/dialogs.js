@@ -1,4 +1,5 @@
 import { categories, dismissals, events, formats, noteKinds, phases, storyboardId, today } from './domain.js';
+import { bodyMeasures, dimensionSources } from './anthropometry.js';
 import { area, button, dateLabel, escapeHtml as e, icon, iconButton, input, rate, select, tag } from './ui.js';
 
 export const dialog = document.querySelector('#dialog');
@@ -40,6 +41,18 @@ export function showInnings(data, record) {
     <div class="detail-score"><strong>${record.runs}${record.out?'':'*'}</strong><span>${record.balls} balls · SR ${rate(record.balls ? record.runs/record.balls*100 : null)}</span>${tag(record.out?record.dismissal:'Not out','lime')}</div>
     <p>${tag(record.source==='demo_simulated'?'Fictional record':'Observed / entered',record.source==='demo_simulated'?'violet':'gray')}</p>
     <dl class="record-detail">${details.filter(([,value])=>value).map(([label,value])=>`<div><dt>${label}</dt><dd>${e(value)}</dd></div>`).join('')}</dl><div class="button-row dialog-actions">${review ? button('Open related clip',{action:'related-clip',glyph:'video',variant:'outline',attrs:`data-id="${e(review.id)}"`}) : ''}${button('Edit innings',{action:'edit-innings',glyph:'edit',variant:'primary',attrs:`data-id="${e(record.id)}"`})}</div>`);
+}
+
+export function dimensionFields(dimensions) {
+  return `<div class="dimension-fields">${bodyMeasures.map(({key,label,guide})=>`<div class="dimension-field-row">
+    ${input(key,`${label} (cm)`,dimensions?.[key]?.cm,'type="number" min="0.1" max="300" step="any" inputmode="decimal"')}
+    ${select(`${key}Source`,`${label} source`,[['reported',dimensionSources.reported],['measured',dimensionSources.measured]],dimensions?.[key]?.source||'reported','',`aria-label="${label} source"`)}
+    <p>${guide}</p></div>`).join('')}</div>`;
+}
+
+export function clipDimensionEditor(clip) {
+  showDialog('Edit clip anthropometry',dialogForm('clip-dimensions',`<p class="muted">${e(clip.title)} · Add dimensions you have measured or the batter has reported. Leave unknown values blank.</p>
+    ${dimensionFields(clip.dimensions)}`,'Save dimensions',`data-clip-id="${e(clip.id)}"`));
 }
 
 export function markerEditor(review,phase,position) {
