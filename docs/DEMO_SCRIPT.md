@@ -1,6 +1,6 @@
 # Classroom demo · 4–6 minutes
 
-Open the production app on the presentation laptop once with internet access so the short demo clips can be cached. Use [Load comparison demo](https://praveen-ghostprotocol.github.io/CreaseCoach/#video-demo) to open the two prepared clips at Downswing. This link also works offline after the production cache is ready. A rehearsal in the same browser profile confirms that both videos are available.
+Open the production app on the presentation laptop once with internet access so the short demo clips can be cached. Use [Load comparison demo](https://praveen-ghostprotocol.github.io/CreaseCoach/?demo=1#video-demo) to open the two prepared clips at Downswing. This link also works offline after the production cache is ready. A rehearsal in the same browser profile confirms that both videos are available.
 
 | Time | Show | Explain |
 | --- | --- | --- |

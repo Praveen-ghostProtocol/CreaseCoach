@@ -17,7 +17,7 @@ for (const file of source.filter(file => file.isFile() && /\.(js|css)$/.test(fil
 }
 const hash = createHash('sha256');
 for (const asset of assets.slice(1)) hash.update(await readFile(join('dist',asset)));
-const version = hash.digest('hex').slice(0,12);
 const worker = await readFile('scripts/sw-template.js','utf8');
+const version = hash.update(worker).digest('hex').slice(0,12);
 await writeFile('dist/sw.js',worker.replace('__VERSION__',version).replace('"__ASSETS__"',JSON.stringify(assets)));
 console.log(`Built dist/ with ${assets.length} precached URLs (${version}).`);

@@ -4,7 +4,7 @@ CreaseCoach helps developing cricket batters turn recorded outcomes and observat
 
 [Open the live app](https://praveen-ghostprotocol.github.io/CreaseCoach/)
 
-[Launch the one-click comparison demo](https://praveen-ghostprotocol.github.io/CreaseCoach/#video-demo)
+[Launch the one-click comparison demo](https://praveen-ghostprotocol.github.io/CreaseCoach/?demo=1#video-demo)
 
 ## Run locally
 
@@ -26,6 +26,8 @@ npm run preview
 ```
 
 The preview runs at `http://localhost:4173`. After the first successful load, the production service worker can serve the five screens, their assets, and the Bat Motion Explorer offline. In Chromium DevTools, use **Application → Service Workers** to confirm control, then set **Network → Offline** and reload. Check the browser's install menu on the production URL. Browser storage belongs to an origin, so `localhost`, `127.0.0.1`, the development port, and the preview port each have separate records.
+
+When a new release is ready, an open app displays a **Reload** button. Save any open form before using it. If a browser still displays a version from before the update notice was added, hard-refresh the live page once while online. A hard refresh preserves saved records.
 
 Run `npm run test:browser` after building when Playwright and Chromium are available. If they are installed outside the repository, set `CREASE_BROWSER_PACKAGE` to the Playwright package path and `CREASE_BROWSER_EXE` to the Chrome executable. The smoke test starts its own loopback server and writes screenshots to `.browser-test/` by default. Its local playback fixture is a synthetic moving rectangle. To also exercise the pose model, set `CREASE_POSE_CLIP` to the path of a local batting clip and `CREASE_POSE_TIME` to a time in seconds with the batter visible.
 

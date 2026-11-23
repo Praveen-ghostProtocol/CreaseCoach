@@ -21,6 +21,11 @@
   -webkit-font-smoothing: antialiased;
 }
 
+.app-update { position: fixed; z-index: 20; right: 14px; bottom: 14px; display: flex; align-items: center; gap: 9px; padding: 9px; color: var(--ink); background: var(--surface); box-shadow: 0 8px 30px #13281920; border: 1px solid var(--line); border-radius: 9px; font-size: .86rem; }
+.app-update[hidden] { display: none; }
+.app-update p { margin: 0; }
+@media (max-width: 780px) { .app-update { bottom: 79px; } }
+
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
 body { margin: 0; min-width: 280px; }

@@ -7,6 +7,7 @@ import { phaseByKey, updatedMarkers } from './batting-timeline.js';
 import { comparisonDemoClips, demoClipPath } from './demo-clips.js';
 import { readDimensions } from './anthropometry.js';
 import { frameMeasureDialog } from './measure-frame.js';
+import { startAppUpdates } from './pwa.js';
 import { mountComparison } from './video-compare.js';
 import { clipDimensionEditor, confirmAction, dialog, dialogForm, dimensionFields, inningsEditor, markerEditor, noteEditor, showDialog, showInnings, workspaceDialog } from './dialogs.js';
 
@@ -593,8 +594,11 @@ dialog.addEventListener('close',() => {
 });
 
 function launchDemoLink() {
-  if (location.hash!=='#video-demo') return false;
-  history.replaceState(null,'','#video');
+  const url=new URL(location.href);
+  if (url.hash!=='#video-demo' && url.searchParams.get('demo')!=='1') return false;
+  url.searchParams.delete('demo');
+  url.hash='video';
+  history.replaceState(null,'',url);
   loadComparisonDemo();
   return true;
 }
@@ -611,10 +615,4 @@ window.addEventListener('beforeinstallprompt',event => {event.preventDefault(); 
 window.addEventListener('appinstalled',() => {installPrompt=null; notify('CreaseCoach installed.');});
 
 if (!launchDemoLink()) render();
-
-if ('serviceWorker' in navigator && !navigator.serviceWorker.controller) {
-  const worker = new URL('../sw.js',import.meta.url);
-  fetch(worker,{method:'HEAD',cache:'no-store'}).then(response => {
-    if (response.ok && /javascript/.test(response.headers.get('content-type') || '')) return navigator.serviceWorker.register(worker);
-  }).catch(() => { /* The workspace remains usable if offline caching cannot start. */ });
-}
+startAppUpdates();

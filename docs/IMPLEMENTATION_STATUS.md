@@ -14,6 +14,7 @@
 | Bat Motion Explorer | Chrome rendered WebGL, changed the camera, orbited by dragging, switched sessions, toggled comparison and played the swing. A separate mobile browser test disabled WebGL and verified SVG playback and session switching. |
 | Practice plan | Chrome verified evidence transfer, focus-dependent activities, editable objectives, completion, reflections and history after reload. |
 | PWA | The production service worker controlled the page. Chrome validated the manifest, reported zero installability errors in an isolated persistent profile, and reopened the app and motion explorer after disconnecting. |
+| Cache updates | Chrome installed the new release with a legacy tab still open, then opened the demo and kept a saved innings record. A later release showed the reload notice without interrupting an open form. The demo reopened offline after the update. |
 | Responsive presentation | Browser tests checked all five screens for overflow at 375 px and captured desktop and mobile previews. |
 
 Reproduce checks with `npm test`, `npm run build` and, with Playwright and Chrome available, `npm run test:browser`. The domain tests verify behaviour independent of the UI. The browser script uses synthetic media, demo records and an isolated profile, with an optional local batting clip for a real pose test.
