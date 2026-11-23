@@ -14,7 +14,8 @@ function compareClip(side,clip,file,choices,pending) {
     <div class="compare-screen">${file ? `<video data-compare-player muted playsinline preload="auto" src="${e(file.url)}" aria-label="${label} playback"></video>`
     : empty('film',clip?'Video file needed':'Choose a clip',demo?'Load the comparison demo to reopen the sample clips.':clip?'Reselect the original file to view its saved markers.':'Open a local batting clip to fill this panel.')}</div>
     <div class="compare-clip-foot"><output class="timecode" data-clip-time aria-label="${label} video time">${clip?`Duration ${markerTime(clip.duration)}`:'—'}</output>
-    ${clip?button('Edit markers',{action:'compare-edit-markers',glyph:'edit',variant:'subtle',attrs:`data-id="${e(clip.id)}" aria-label="Edit markers for ${label}"`}):''}</div>
+    <div class="button-row compact">${file?button('Review frame',{action:'compare-review-frame',glyph:'video',variant:'subtle',attrs:`${attrs} data-id="${e(clip.id)}" aria-label="Review frame from ${label}"`}):''}
+    ${clip?button('Edit markers',{action:'compare-edit-markers',glyph:'edit',variant:'subtle',attrs:`data-id="${e(clip.id)}" aria-label="Edit markers for ${label}"`}):''}</div></div>
     ${demo?`<p class="sample-credit">Practice footage by <a href="${e(demo.sourceUrl)}" target="_blank" rel="noopener noreferrer">${e(demo.author)}</a> on Pexels.</p>`:''}
     ${clip?compareDimensions(clip,label):''}
   </article>`;
@@ -46,6 +47,7 @@ export function comparisonView(data,files,choice,pending) {
         <div class="button-row compact"><output class="timecode" data-compare-offset>At marker</output><label class="speed"><span class="sr-only">Comparison playback speed</span><select data-compare-speed aria-label="Comparison playback speed">${[.25,.5,1].map(rate=>`<option value="${String(rate).replace(/^0\./,'.')}" ${choice.speed===rate?'selected':''}>${rate}×</option>`).join('')}</select></label></div></div>
       <p class="muted compare-status" role="status" data-compare-status>Loading both clips…</p></div>`:''}</div>
     <div class="compare-grid">${compareClip('left',left,leftFile,clipOptions(right),pending)}${compareClip('right',right,rightFile,clipOptions(left),pending)}</div>
+    ${demoClipById(left?.id) && demoClipById(right?.id) ? '<p class="compare-context">These practice clips show different batters and camera views. The markers align phases for visual review.</p>' : ''}
   </section>`;
 }
 

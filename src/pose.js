@@ -11,7 +11,7 @@ async function getModel() {
     const {FilesetResolver,PoseLandmarker} = await import(`${runtime}/vision_bundle.mjs`);
     const files = await FilesetResolver.forVisionTasks(`${runtime}/wasm`);
     return PoseLandmarker.createFromOptions(files,{
-      baseOptions:{modelAssetPath:modelUrl,delegate:'CPU'}, runningMode:'IMAGE', numPoses:1,
+      baseOptions:{modelAssetPath:modelUrl,delegate:'CPU'}, runningMode:'IMAGE', numPoses:2,
     });
   })().catch(error=>{
     sharedModel = null;
@@ -49,7 +49,7 @@ async function analyze(source,center,duration,signal,progress) {
   progress('Loading the pose model…');
   let model;
   try {model = await getModel();}
-  catch {throw new Error('The pose model could not load. Check your connection and browser, then try again.');}
+  catch {throw new Error('The pose model could not load. Retry with a connection or use the manual timeline and observations.');}
   signal.throwIfAborted();
   const video = document.createElement('video');
   video.preload='auto';
@@ -75,8 +75,9 @@ async function analyze(source,center,duration,signal,progress) {
       await waitForFrame(video,Math.min(time,Math.max(0,duration-.001)),signal);
       context.drawImage(video,0,0,canvas.width,canvas.height);
       const output=model.detect(canvas);
-      const summary=summarizePose(output.landmarks[0] || [],canvas.width,canvas.height);
-      frames.push({...summary,time,width:canvas.width,height:canvas.height,image:canvas.toDataURL('image/jpeg',.82)});
+      const multiplePeople=output.landmarks.length>1;
+      const summary=summarizePose(multiplePeople?[]:output.landmarks[0] || [],canvas.width,canvas.height);
+      frames.push({...summary,multiplePeople,time,width:canvas.width,height:canvas.height,image:canvas.toDataURL('image/jpeg',.82)});
     }
     return frames;
   } finally {
@@ -116,15 +117,20 @@ export function mountPoseReview(root, sourceVideo, playback, review, memory, onN
     if (!frames?.length) return;
     const frame=frames[selection];
     const found=hasPose(frame);
+    const state=found?'Model estimate':frame.multiplePeople?'Multiple people':'Limited visibility';
     const measurements=frame.angles.length ? `<dl class="metric-list">${frame.angles.map(item=>`<div><dt>${e(item.label)} in image</dt><dd>${item.degrees}°</dd></div>`).join('')}</dl>` : '';
     results.innerHTML=`<div class="pose-frames" aria-label="Analyzed frames">${frames.map((item,index)=>`<button type="button" class="btn outline" data-pose-index="${index}" aria-pressed="${index===selection}" aria-label="Review frame at ${item.time.toFixed(2)} seconds">${timeLabel(item.time)}</button>`).join('')}</div>
       <div class="pose-result"><figure class="pose-frame"><img src="${e(frame.image)}" width="${frame.width}" height="${frame.height}" alt="Video still at ${frame.time.toFixed(2)} seconds">${found?overlay(frame):''}</figure>
-      <div>${panelHead(`Frame at ${frame.time.toFixed(2)} s`,'',tag(found?'Model estimate':'Limited visibility',found?'lime':'amber'))}
-      ${found ? `<p class="muted">Check the marked joints against the footage before using the estimate.</p>${measurements}` : '<p class="muted">Too few body landmarks were visible. Try a frame with one batter clearly in view.</p>'}
-      <div class="button-row">${button('Go to frame',{action:'jump-video',glyph:'arrow',variant:'outline',attrs:`data-time="${frame.time}"`})}${found?'<button type="button" class="btn primary" data-save-pose>Add pose note</button>':''}</div></div></div>`;
+      <div>${panelHead(`Frame at ${frame.time.toFixed(2)} s`,'',tag(state,found?'lime':'amber'))}
+      ${found ? `${measurements}<label class="check pose-confirm"><input type="checkbox" data-confirm-pose> The overlay follows the batter</label>`
+        : `<p class="muted">${frame.multiplePeople?'Choose a frame with one batter in view, or record a manual observation.':'Too few body landmarks were visible. Try a clearer frame or record a manual observation.'}</p>`}
+      <div class="button-row">${button('Go to frame',{action:'jump-video',glyph:'arrow',variant:'outline',attrs:`data-time="${frame.time}"`})}${found?'<button type="button" class="btn primary" data-save-pose disabled>Add pose note</button>':''}</div></div></div>`;
     if (focusFrame) results.querySelector(`[data-pose-index="${selection}"]`)?.focus({preventScroll:true});
   }
 
+  results.onchange = event => {
+    if (event.target.matches('[data-confirm-pose]')) results.querySelector('[data-save-pose]').disabled=!event.target.checked;
+  };
   results.onclick = event => {
     const tick=event.target.closest('[data-pose-index]');
     if (tick) {
@@ -147,6 +153,8 @@ export function mountPoseReview(root, sourceVideo, playback, review, memory, onN
     const {signal}=abort;
     start.disabled=true;
     cancel.hidden=false;
+    results.replaceChildren();
+    memory.poseReview=undefined;
     try {
       const frames=await analyze(sourceVideo.currentSrc||sourceVideo.src,center,review.duration,signal,text=>{message.textContent=text;});
       if (!root.isConnected || signal.aborted) return;
@@ -154,7 +162,7 @@ export function mountPoseReview(root, sourceVideo, playback, review, memory, onN
       selection=scored.sort((a,b)=>Number(b.found)-Number(a.found)||a.distance-b.distance)[0].index;
       memory.poseReview={frames,selection};
       const count=frames.filter(hasPose).length;
-      message.textContent=`Visible pose links in ${count} of ${frames.length} sampled frames.`;
+      message.textContent=`One usable pose in ${count} of ${frames.length} sampled frames.`;
       draw();
     } catch (error) {
       if (root.isConnected) message.textContent=signal.aborted?'Analysis cancelled.':error.message || 'This browser could not analyze the clip. Try a short local video.';

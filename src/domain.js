@@ -172,7 +172,8 @@ export function planEvidence(data, currentPlanId = '') {
   for (const review of data.videos) {
     for (const note of review.notes.filter(item => item.selected)) {
       const kind = note.source === poseNoteSource ? 'AI pose estimate' : note.kind !== 'Direct observation' ? 'Hypothesized' : review.source === 'demo_simulated' ? 'Simulated' : 'Observed / entered';
-      result.push({id:note.id, kind, source:`${review.title} · ${note.kind}${review.source === 'demo_simulated' ? ' · schematic' : ''}`, text:note.text});
+      result.push({id:note.id, kind, source:`${review.title} · ${note.kind}${review.source === 'demo_simulated' ? ' · schematic' : ''}`, text:note.text,
+        clipId:review.id,time:note.time});
     }
   }
   if (data.motion) {
@@ -229,6 +230,8 @@ export function validWorkspace(data, allowDemo = false) {
         (note.source === undefined || isBattingClip(item) && note.source === poseNoteSource)) && unique(item.notes))) return false;
   if (!data.plans.every(item => strings(item,['id','focus','objective','criterion','next','reflection']) && validDate(item.created) &&
       Object.hasOwn(focuses,item.focus) && (!item.next || validDate(item.next)) && isBool(item.complete) &&
+      (item.evidence === undefined || Array.isArray(item.evidence) && item.evidence.every(row =>
+        strings(row,['id','kind','source','text']) && (row.clipId===undefined || isText(row.clipId) && isNonnegative(row.time)))) &&
       Array.isArray(item.activities) && item.activities.length > 0 && item.activities.length <= 2 &&
       item.activities.every(activity => strings(activity,['id','title','dose']) && isBool(activity.done)) && unique(item.activities))) return false;
   return data.logs.every(item => strings(item,['id','text']) && validDate(item.date)) &&

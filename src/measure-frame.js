@@ -12,6 +12,7 @@ export function frameMeasureDialog(clip,frame,time,onSave) {
       <img src="${e(frame.data)}" alt="Selected local video frame"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></figure>
     <div>${select('dimension','Body dimension',bodyMeasures.map(({key,label})=>[key,label]),'upperArm','','aria-label="Body dimension"')}
       <p class="dimension-empty" data-measure-guide></p>
+      <p class="dimension-empty">Teal marks the reference. Lime marks the body span.</p>
       ${input('reference','Reference object','',`maxlength="80" required placeholder="Measured ruler"`)}
       ${input('referenceCm','Known length (cm)','',`type="number" min="0.1" max="10000" step="any" inputmode="decimal" required`)}
       <p class="measure-progress" role="status"></p><output class="measure-estimate" aria-live="polite"></output>
@@ -77,7 +78,10 @@ export function frameMeasureDialog(clip,frame,time,onSave) {
   };
   undo.onclick=()=>{points.pop();redraw();};
   known.oninput=redraw;
-  form.elements.dimension.onchange=redraw;
+  form.elements.dimension.onchange=()=>{
+    points.splice(2);
+    redraw();
+  };
   surface.onload=redraw;
   form.onsubmit=event=>{
     event.preventDefault();

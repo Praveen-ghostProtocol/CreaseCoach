@@ -8,8 +8,8 @@ Open the production app on the presentation laptop once with internet access so 
 | 0:40–1:25 | Performance Log | Add a caught dismissal or edit an existing one. Enter only the known fields and leave a shot detail unrecorded. |
 | 1:25–2:10 | Performance Insights | Show the new counts, denominator and drill-down. Read the observation and hypothesis separately. |
 | 2:10–2:55 | Side-by-side Video Lab | Open the one-click comparison. Play both at half speed, switch the landmark from Downswing to Follow-through, and return to the marker. |
-| 2:55–3:45 | Batting timeline and anthropometry | Open **Edit markers** for Clip A. Show its editable markers and the clip anthropometry card. Explain that the visible athletes’ dimensions are unrecorded, then show a measured participant record or the fictional profile as an illustration. |
-| 3:45–5:00 | Next Session Plan | Review current evidence, choose one focus, edit and save the objective. Tick an activity, enter a reflection, save, reload and reopen it from history. |
+| 2:55–3:45 | Batting timeline and anthropometry | Select **Review frame** for Clip A at Downswing. Record a timestamped observation and enable **Use in practice plan**. Show the clip anthropometry card and say that the practice batters’ body dimensions are unrecorded. |
+| 3:45–5:00 | Next Session Plan | Select **Build a practice plan**. Edit and save one objective. Under **Evidence when saved**, open the clip link and show that it goes to the exact frame. |
 | 5:00–5:30 | Evaluation | Show how the app supports recall and decision-making. Describe the unstructured notes comparison and state that the participant study is planned. |
 
 For the expected initial pattern, use the calculation **3 of 5 recorded dismissals were caught**. Keep the walkthrough on the fictional or schematic workspace unless you have a clip cleared for the demonstration.

@@ -1,6 +1,7 @@
 import { feedback, filterInnings, focuses, patternText, suggestPlan, summarize } from './domain.js';
 import { area, button, dateLabel, empty, escapeHtml as e, filterBar, firstName, icon, input, inningsTable, pageHead, panelHead, rate, select, sortedInnings, tag, trend, whole } from './ui.js';
 import { profileDimensions } from './anthropometry-view.js';
+import { markerTime } from './batting-timeline.js';
 
 export function home(data, isDemo) {
   const stats = summarize(data.innings);
@@ -82,8 +83,14 @@ export function insights(data, filters, tab) {
     <section class="panel">${panelHead('Runs across innings',`Latest ${Math.min(8,stats.count)} visible innings`)}${trend(records)}</section>`}`;
 }
 
-function evidenceRows(evidence) {
-  return evidence.length ? `<ul class="evidence-list">${evidence.map(row=>`<li>${tag(row.kind,row.kind==='Simulated'?'violet':['Hypothesized','AI pose estimate'].includes(row.kind)?'amber':'lime')}<div><strong>${e(row.source)}</strong><p>${e(row.text)}</p></div></li>`).join('')}</ul>` : `<p class="muted">No recurring outcome or selected observation yet. You can start with a general review set.</p>`;
+function evidenceRows(evidence,videos) {
+  if (!evidence.length) return '<p class="muted">No recurring outcome or selected observation yet. You can start with a general review set.</p>';
+  return `<ul class="evidence-list">${evidence.map(row=>{
+    const clip = row.clipId && videos.find(video=>video.id===row.clipId);
+    const moment = clip ? button(`Open ${clip.title} at ${markerTime(row.time)}`,{action:'related-clip',glyph:'video',variant:'subtle',attrs:`data-id="${e(clip.id)}" data-time="${row.time}"`})
+      : row.clipId ? `<p class="muted">Source clip removed · ${markerTime(row.time)}</p>` : '';
+    return `<li>${tag(row.kind,row.kind==='Simulated'?'violet':['Hypothesized','AI pose estimate'].includes(row.kind)?'amber':'lime')}<div><strong>${e(row.source)}</strong><p>${e(row.text)}</p>${moment}</div></li>`;
+  }).join('')}</ul>`;
 }
 
 export function plan(data, selectedId, draft = null) {
@@ -92,13 +99,16 @@ export function plan(data, selectedId, draft = null) {
   const model = draft || saved || suggestion;
   const base = focuses[model.focus];
   const history = [...data.plans].reverse();
+  const evidence = saved?.evidence ?? suggestion.evidence;
+  const evidenceTitle = saved?.evidence ? 'Evidence when saved' : 'Current evidence';
+  const evidenceContext = saved?.evidence ? 'The observations and records used to create this plan.' : 'Updates as innings and observations change.';
   return `${pageHead('NEXT SESSION PLAN','What should I practise next?','Choose one focus, review the evidence and adapt the activities to your next session.',button('New plan',{action:'new-plan',glyph:'plus',variant:'outline'}))}
     <div class="plan-grid">
       <section class="panel plan-editor">${panelHead(saved?'Saved practice plan':'Build a practice plan',saved?`Created ${dateLabel(saved.created,{day:'numeric',month:'short',year:'numeric'})}`:suggestion.reason,saved?tag(saved.complete?'Completed':'In progress',saved.complete?'lime':'gray'):'')}
       <form id="plan-form"><input type="hidden" name="planId" value="${e(saved?.id || '')}">
         ${select('focus','Practice focus',Object.entries(focuses).map(([key,value])=>[key,value.title]),model.focus,'','data-plan-focus')}
-        <details class="mobile-evidence"><summary>Review current evidence <span>${suggestion.evidence.length} ${suggestion.evidence.length===1?'source':'sources'}</span></summary>
-          ${evidenceRows(suggestion.evidence)}<p class="callout">${e(suggestion.uncertainty)}</p></details>
+        <details class="mobile-evidence"><summary>${saved?.evidence?'Review evidence when saved':'Review current evidence'} <span>${evidence.length} ${evidence.length===1?'source':'sources'}</span></summary>
+          ${evidenceRows(evidence,data.videos)}${saved?.evidence?'':`<p class="callout">${e(suggestion.uncertainty)}</p>`}</details>
         ${area('objective','One improvement objective',model.objective,'maxlength="400" rows="2" required')}
         <div class="plan-activities"><h3>Practice activities</h3>${model.activities.map((activity,i) => {
           const [, ,equipment,instructions,observe] = base.activities[i] || [];
@@ -111,7 +121,7 @@ export function plan(data, selectedId, draft = null) {
         ${saved ? `${area('reflection','Post-session reflection',model.reflection,'maxlength="800" rows="3" placeholder="What did you observe? What would you try again?"')}<label class="check"><input type="checkbox" name="complete" ${model.complete?'checked':''}> Mark session complete</label>` : ''}
         <p class="form-error" role="alert"></p><div class="button-row"><button type="submit" class="btn primary">${icon('check',17)} ${saved?'Save changes':'Save practice plan'}</button>${saved ? button('Delete plan',{action:'delete-plan',glyph:'trash',variant:'subtle',attrs:`data-id="${e(saved.id)}"`}) : ''}</div>
       </form></section>
-      <div class="plan-aside"><section class="panel desktop-evidence">${panelHead('Current evidence','Updates as innings and observations change.')}${evidenceRows(suggestion.evidence)}<div class="callout">${icon('info',19)}<p>${e(suggestion.uncertainty)}</p></div><div class="button-row">${button('Review insights',{to:'insights',variant:'subtle',glyph:'arrow',trailing:true})}${button('Review clips',{to:'video',variant:'subtle',glyph:'arrow',trailing:true})}</div></section>
+      <div class="plan-aside"><section class="panel desktop-evidence">${panelHead(evidenceTitle,evidenceContext)}${evidenceRows(evidence,data.videos)}${saved?.evidence?'':`<div class="callout">${icon('info',19)}<p>${e(suggestion.uncertainty)}</p></div>`}<div class="button-row">${button('Review insights',{to:'insights',variant:'subtle',glyph:'arrow',trailing:true})}${button('Review clips',{to:'video',variant:'subtle',glyph:'arrow',trailing:true})}</div></section>
       <section class="panel">${panelHead('Plan history',`${history.length} saved ${history.length===1?'plan':'plans'}`)}${history.length ? `<div class="history">${history.map(item=>`<button type="button" data-action="open-plan" data-id="${e(item.id)}" aria-pressed="${item.id===saved?.id}"><div><strong>${e(focuses[item.focus].title)}</strong><small>${dateLabel(item.created)} · ${item.complete?'Completed':'In progress'}</small></div>${icon('arrow',17)}</button>`).join('')}</div>` : '<p class="muted">Your saved practice sessions will appear here.</p>'}</section></div>
     </div>`;
 }

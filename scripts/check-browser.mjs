@@ -105,6 +105,9 @@ try {
   console.log('PASS WebGL, camera presets, drag orbit, comparison, playback and evidence selection');
 
   await nav('Video Lab');
+  await page.locator('#video-element').waitFor({timeout:5000});
+  assert.equal(await page.getByLabel('Clip or storyboard').inputValue(),'sample-batting-field');
+  await page.getByLabel('Clip or storyboard').selectOption('cricket-storyboard');
   await page.getByRole('button',{name:'Approximate contact',exact:true}).click();
   await check(page.locator('#video-time'),/0:03\.0/);
   await page.getByRole('button',{name:'Freeze and capture frame'}).click();
@@ -151,7 +154,7 @@ try {
 
   await page.getByRole('button',{name:'Compare clips',exact:true}).click();
   const chooseSecond=page.waitForEvent('filechooser');
-  await page.locator('[data-clip="right"]').getByRole('button',{name:'Open local file'}).click();
+  await page.locator('[data-clip="right"]').getByRole('button',{name:/Open local file|Open another file/}).click();
   await (await chooseSecond).setFiles({name:'follow-up.webm',mimeType:'video/webm',buffer:media});
   await page.getByRole('button',{name:'Edit markers for Clip B'}).click();
   await saveMarker('backlift',.43);
@@ -166,6 +169,10 @@ try {
   },[a,b]);
   await assertTimes(.25,.43);
   await page.getByLabel('Align at marker').selectOption('downswing');
+  await assertTimes(.47,.61);
+  await page.getByRole('button',{name:'Review frame from Clip A'}).click();
+  await page.waitForFunction(()=>Math.abs(document.querySelector('#video-element')?.currentTime-.47)<.03);
+  await page.getByRole('button',{name:'Compare clips',exact:true}).click();
   await assertTimes(.47,.61);
   await compare.getByRole('button',{name:'Step both back 0.1 seconds'}).click();
   await assertTimes(.37,.51);
@@ -188,24 +195,39 @@ try {
   assert.equal(await page.locator('#compare-phase option[value="followThrough"]').evaluate(option=>option.disabled),true);
   await page.reload();
   await page.getByLabel('Clip or storyboard').selectOption({label:'fixture.webm'});
-  await heading('Reselect the local file');
+  await page.waitForFunction(()=>document.querySelector('#video-element')?.readyState>=2);
   await check(page.locator('[data-marker-phase="backlift"]'),/0:00\.25/);
-  console.log('PASS desktop phase markers, edits, removal, persistence and aligned dual playback');
-  console.log('PASS storyboard and local WebM playback, frame capture, annotation editing and media reselection');
+  await page.getByRole('button',{name:'Jump to downswing'}).click();
+  await page.waitForFunction(()=>Math.abs(document.querySelector('#video-element').currentTime-.47)<.03);
+  await page.getByRole('button',{name:'Add observation'}).click();
+  await dialog.getByLabel('What did you notice?').fill('Front foot lands before the bat comes through.');
+  await dialog.getByLabel('Use in practice plan').check();
+  await dialog.getByRole('button',{name:'Save observation'}).click();
+  console.log('PASS desktop phase markers, edits, removal, aligned playback and automatic local media recovery');
 
-  await nav('Next Session Plan');
+  await page.getByRole('button',{name:'Build a practice plan',exact:true}).click();
   await check(page.locator('.desktop-evidence .evidence-list'),/Edited fictional observation/);
   await check(page.locator('.desktop-evidence .evidence-list'),/Bat Motion Explorer/);
   await page.getByLabel('Practice focus').selectOption('contact');
   await check(page.locator('.plan-activities'),/Controlled contact check/);
   await page.getByLabel('One improvement objective').fill('Compare my contact notes across six controlled feeds.');
   await page.getByRole('button',{name:'Save practice plan'}).click();
+  const savedEvidence=page.locator('.desktop-evidence');
+  await check(savedEvidence,/Front foot lands before the bat comes through/);
+  await savedEvidence.getByRole('button',{name:/Open fixture.webm at/}).click();
+  await page.waitForFunction(()=>Math.abs(document.querySelector('#video-element')?.currentTime-.47)<.03);
+  await page.locator('.notes-list li').filter({hasText:'Front foot lands before the bat comes through.'}).getByRole('button',{name:'Edit observation'}).click();
+  await dialog.getByLabel('What did you notice?').fill('A later edit that should not rewrite the old plan.');
+  await dialog.getByRole('button',{name:'Save observation'}).click();
+  await nav('Next Session Plan');
+  await check(savedEvidence,/Front foot lands before the bat comes through/);
   await page.getByLabel('Activity completed').first().check();
   await page.getByLabel('Post-session reflection').fill('Used the same feed for six attempts.');
   await page.getByLabel('Mark session complete').check();
   await page.getByRole('button',{name:'Save changes'}).click();
   await page.reload();
   await page.getByRole('button',{name:/Contact consistency.*Completed/}).click();
+  await check(savedEvidence,/Front foot lands before the bat comes through/);
   assert.equal(await page.getByLabel('One improvement objective').inputValue(),'Compare my contact notes across six controlled feeds.');
   assert.equal(await page.getByLabel('Post-session reflection').inputValue(),'Used the same feed for six attempts.');
   assert.ok(await page.getByLabel('Activity completed').first().isChecked());
@@ -271,6 +293,7 @@ try {
   await page.getByText('Clip A anthropometry',{exact:true}).click();
   await check(page.locator('[data-clip="left"] .dimension-values'),/178 cm.*Directly measured/s);
   await page.getByRole('button',{name:'Edit markers for Clip A'}).click();
+  await saveMarker('backlift',1.43);
   await page.getByRole('button',{name:'Jump to downswing'}).click();
   await page.getByRole('button',{name:'Measure on frame'}).click();
   const frame=dialog.locator('.measurement-scene');
@@ -287,6 +310,8 @@ try {
   await assertTimes(1.60,2.00);
   await page.getByText('Clip A anthropometry',{exact:true}).click();
   await check(page.locator('[data-clip="left"] .compare-dimensions'),/178 cm.*projected/s);
+  await page.getByLabel('Align at marker').selectOption('backlift');
+  await assertTimes(1.43,1.80);
   console.log('PASS offline one-click demo, pre-set alignment and persisted measurements with source labels');
   await nav('Performance Insights');
   await page.getByRole('button',{name:'Bat Motion Explorer'}).click();
@@ -323,17 +348,30 @@ try {
   assert.deepEqual(mobileErrors,[]);
   console.log('PASS 375px navigation, all five layouts and forced SVG motion fallback');
 
+  const blockedPose = await browser.newPage();
+  await blockedPose.route('https://cdn.jsdelivr.net/**',route=>route.abort());
+  await blockedPose.goto(`${base}/#video`);
+  await blockedPose.getByRole('button',{name:'Analyze around playhead'}).click();
+  await blockedPose.getByText(/The pose model could not load/).waitFor();
+  await blockedPose.getByRole('button',{name:'Add observation',exact:true}).click();
+  await blockedPose.getByRole('dialog').getByLabel('What did you notice?').waitFor();
+  await blockedPose.close();
+  console.log('PASS blocked pose download leaves manual review available');
+
   if (process.env.CREASE_POSE_CLIP) {
     const posePage=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
     const uploads=[];
     posePage.on('request',request=>{if (!['GET','HEAD'].includes(request.method())) uploads.push(request.method());});
     await posePage.goto(`${base}/#video`);
+    await posePage.locator('#video-element').waitFor();
     await posePage.locator('#video-file').setInputFiles(process.env.CREASE_POSE_CLIP);
+    await posePage.getByLabel('Clip or storyboard').getByRole('option',{name:/\.mp4$/}).waitFor({state:'attached'});
     await posePage.waitForFunction(()=>document.querySelector('#video-element')?.readyState>=2);
     await posePage.locator('#video-position').fill(process.env.CREASE_POSE_TIME || '4.6');
     const pose=posePage.locator('#pose-review');
     await pose.getByRole('button',{name:'Analyze around playhead'}).click();
     await pose.locator('.pose-overlay path').first().waitFor({state:'attached',timeout:45000});
+    await pose.getByLabel('The overlay follows the batter').check();
     await pose.getByRole('button',{name:'Add pose note'}).click();
     const poseDialog=posePage.getByRole('dialog');
     assert.equal(await poseDialog.getByLabel('Use in practice plan').isChecked(),false);

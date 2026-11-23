@@ -218,6 +218,7 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
 .evidence-list li:last-child { border: 0; }
 .evidence-list strong { font-size: .84rem; }
 .evidence-list p { color: var(--muted); font-size: .83rem; }
+.evidence-list .btn { margin-top: 5px; white-space: normal; text-align: left; }
 .callout { display: flex; align-items: start; gap: 8px; padding: 10px; margin: 10px 0; border: 1px solid #dce6d7; border-radius: 8px; background: #f1f5ed; color: #425642; font-size: .82rem; }
 .callout svg { margin-top: 1px; flex: 0 0 auto; }
 .history { display: grid; gap: 5px; }
@@ -273,9 +274,10 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
 .compare-clip-head, .compare-clip-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 5px; padding: 6px 9px; }
 .compare-clip-head .field { flex: 1 1 150px; margin: 0; }
 .compare-clip-foot { align-items: center; padding-block: 2px; }
-.compare-screen { display: grid; align-items: center; min-height: 205px; height: min(35vh,435px); background: #18251c; color: #f4f8ef; }
+.compare-screen { display: grid; align-items: center; min-height: 205px; height: min(39vh,435px); background: #19231a; color: #f4f8ef; }
 .compare-screen video { display: block; width: 100%; height: 100%; min-height: 0; object-fit: contain; }
 .compare-screen .empty p { color: #dce6d9; }
+.compare-context { margin: 10px 0 0; color: var(--muted); font-size: .8rem; }
 .compare-scrubber { position: relative; display: block; }
 .compare-scrubber i { position: absolute; top: 22px; left: var(--zero); height: 5px; width: 2px; background: var(--focus); pointer-events: none; }
 .compare-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; }
@@ -338,6 +340,7 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
 .pose-frames button { font-variant-numeric: tabular-nums; }
 .pose-frames button[aria-pressed=true] { background: var(--lime-soft); border-color: #cbdcbd; }
 .pose-result { display: grid; grid-template-columns: minmax(0,1.1fr) minmax(0,1fr); gap: 14px; align-items: start; }
+.pose-confirm { margin: 10px 0; }
 .pose-frame { position: relative; width: fit-content; max-width: 100%; margin: 0; overflow: hidden; border-radius: 8px; }
 .pose-frame img { display: block; width: auto; max-width: 100%; height: auto; max-height: min(64vh,460px); }
 .pose-overlay { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }

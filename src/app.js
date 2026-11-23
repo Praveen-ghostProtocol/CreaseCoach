@@ -1,10 +1,11 @@
-import { STORAGE, decode, demoVideoSource, encode, events, focuses, isBattingClip, makeDemo, makePlayer, noteKinds, poseNoteSource, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
+import { STORAGE, decode, demoVideoSource, encode, events, focuses, isBattingClip, makeDemo, makePlayer, noteKinds, planEvidence, poseNoteSource, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
 import { button, dateLabel, escapeHtml as e, icon, iconButton, id, initials, input, select, timeLabel } from './ui.js';
 import { home, insights, log, plan } from './views.js';
 import { getReview, inspectVideo, setupPlayback, videoView } from './video.js';
 import { mountPoseReview } from './pose.js';
 import { phaseByKey, updatedMarkers } from './batting-timeline.js';
-import { comparisonDemoClips, demoClipPath } from './demo-clips.js';
+import { comparisonDemoClips, demoClipById, demoClipPath } from './demo-clips.js';
+import { forgetClip, keepClip, storedClip } from './clip-storage.js';
 import { readDimensions } from './anthropometry.js';
 import { frameMeasureDialog } from './measure-frame.js';
 import { startAppUpdates } from './pwa.js';
@@ -18,14 +19,15 @@ const destinations = {
 const tour = [
   ['home','Meet the demo player','Arjun’s fictional workspace starts with six recorded innings.'],
   ['log','Update the record','Edit an innings or add one to see how the evidence changes.'],
-  ['insights','Read the evidence','Compare recorded outcomes, then try the Bat Motion Explorer with its simulated sessions.'],
-  ['video','Review a moment','Pause the schematic or a local clip and mark an observation for the plan.'],
+  ['insights','Read the evidence','Inspect the records behind a repeated outcome.'],
+  ['video','Review a moment','Pause the practice footage or open your own clip and mark an observation.'],
   ['plan','Choose what to practise','Edit and save one objective, then record what happened after practice.'],
 ];
 const app = document.querySelector('#app');
 const toast = document.querySelector('#toast');
 const videoFiles = {demo:new Map(),personal:new Map()};
 const videoMemory = {demo:new Map(),personal:new Map()};
+const restoredWorkspaces = new WeakSet();
 const initialDemo=makeDemo();
 let state = {mode:'demo',demo:initialDemo,personal:makePlayer()};
 let storageIssue = '';
@@ -35,7 +37,8 @@ let filterInsights = {};
 let tab = 'patterns';
 let planId = '';
 let planDraft = null;
-let reviewId = storyboardId;
+let reviewId = '';
+let reviewSeeking = null;
 let comparison = {open:false,left:'',right:'',phase:'backlift',speed:1};
 let comparisonCleanup = null;
 let videoFileSide = '';
@@ -98,6 +101,9 @@ function clearMedia(mode) {
   for (const {url} of videoFiles[mode].values()) URL.revokeObjectURL(url);
   videoFiles[mode].clear();
   videoMemory[mode].clear();
+  for (const clip of state[mode].videos.filter(item=>item.source==='user_observed_video')) {
+    forgetClip(mode,clip.id).catch(()=>notify('Browser storage could not clear a local video copy.'));
+  }
 }
 
 function resetNavigation() {
@@ -106,7 +112,8 @@ function resetNavigation() {
   tab = 'patterns';
   planId = '';
   planDraft = null;
-  reviewId = storyboardId;
+  reviewId = '';
+  reviewSeeking = null;
   comparison = {open:false,left:'',right:'',phase:'backlift',speed:1};
   videoFileSide = '';
   videoError = '';
@@ -115,7 +122,7 @@ function resetNavigation() {
 function openComparison() {
   const files=videoFiles[state.mode];
   const real=data().videos.filter(isBattingClip);
-  const preferred=[...real].sort((a,b)=>Number(files.has(b.id))-Number(files.has(a.id)));
+  const preferred=[...real].reverse().sort((a,b)=>Number(files.has(b.id))-Number(files.has(a.id)) || Number(Boolean(demoClipById(a.id)))-Number(Boolean(demoClipById(b.id))));
   if (!real.some(clip=>clip.id===comparison.left)) {
     comparison.left=real.find(clip=>clip.id===reviewId && clip.id!==comparison.right)?.id || preferred.find(clip=>clip.id!==comparison.right)?.id || '';
   }
@@ -125,7 +132,7 @@ function openComparison() {
   render();
 }
 
-async function loadComparisonDemo() {
+async function loadComparisonDemo({compare=true} = {}) {
   if (videoPending) return;
   const originalMode=state.mode;
   const demoWorkspace=state.demo;
@@ -156,14 +163,44 @@ async function loadComparisonDemo() {
     const record={id:clip.id,title:clip.title,fileName:clip.fileName,size:media.size,modified:0,duration:media.duration,
       source:demoVideoSource,markers:{...clip.markers}};
     const existing=demoWorkspace.videos.find(item=>item.id===clip.id);
-    if (existing) Object.assign(existing,record);
+    if (existing) {
+      const prior=comparisonDemoClips[0].id===clip.id && existing.markers;
+      if (prior?.backlift===1.07 && prior.downswing===1.60 && prior.followThrough===1.90) existing.markers={...clip.markers};
+      Object.assign(existing,{fileName:record.fileName,size:record.size,modified:record.modified,duration:record.duration});
+    }
     else demoWorkspace.videos.push({...record,notes:[]});
     files.set(clip.id,media);
   }
   const [left,right]=comparisonDemoClips;
-  reviewId=left.id;
-  comparison={open:true,left:left.id,right:right.id,phase:'downswing',speed:.5};
-  persist('Comparison demo ready.');
+  if (compare) reviewId=left.id;
+  if (compare) comparison={open:true,left:left.id,right:right.id,phase:'downswing',speed:.5};
+  persist(compare?'Comparison demo ready.':'');
+  render();
+}
+
+async function restoreLocalClips(mode,workspace) {
+  if (restoredWorkspaces.has(workspace)) return;
+  restoredWorkspaces.add(workspace);
+  const files = videoFiles[mode];
+  const local = workspace.videos.filter(clip=>clip.source==='user_observed_video' && !files.has(clip.id));
+  const restored = await Promise.all(local.map(async clip => {
+    const file = await storedClip(mode,clip.id).catch(()=>null);
+    if (!file || state[mode]!==workspace || !workspace.videos.includes(clip) || files.has(clip.id)) return false;
+    files.set(clip.id,{url:URL.createObjectURL(file),duration:clip.duration});
+    return true;
+  }));
+  if (restored.includes(true) && state.mode===mode && route()==='video' && !dialog.open) render();
+}
+
+function enterVideo() {
+  const workspace = data();
+  if (!reviewId) reviewId = workspace.videos.findLast(clip=>clip.source==='user_observed_video')?.id ||
+    (demo()?comparisonDemoClips[0].id:'');
+  restoreLocalClips(state.mode,workspace);
+  if (demoClipById(reviewId) && !videoFiles[state.mode].has(reviewId) && !videoPending) {
+    loadComparisonDemo({compare:false});
+    return;
+  }
   render();
 }
 
@@ -230,6 +267,8 @@ function render() {
       if (!memory.has(reviewId)) memory.set(reviewId,{});
       const review = currentReview();
       const clipMemory = memory.get(reviewId);
+      const seek = reviewSeeking?.id===reviewId && (videoFiles[state.mode].has(reviewId) || reviewId===storyboardId);
+      if (seek) { clipMemory.time = reviewSeeking.time; reviewSeeking = null; }
       playback = setupPlayback(review,clipMemory,showVideoError);
       const poseRoot = document.querySelector('#pose-review');
       if (poseRoot && playback) poseCleanup=mountPoseReview(poseRoot,document.querySelector('#video-element'),playback,review,clipMemory,(time,text)=>{
@@ -268,7 +307,7 @@ async function loadVideo(file,side) {
     if (!review) {
       review = {id:id(),title:file.name.slice(0,160),fileName:file.name,size:file.size,modified:file.lastModified,duration:media.duration,source:'user_observed_video',notes:[]};
       workspace.videos.push(review);
-      persist('Local clip ready for review.');
+      persist();
     }
     const files = videoFiles[mode];
     if (files.has(review.id)) URL.revokeObjectURL(files.get(review.id).url);
@@ -279,6 +318,13 @@ async function loadVideo(file,side) {
         if (comparison[other]===review.id) showVideoError('That clip is already on the other side. Choose a different file.');
         else comparison[side]=review.id;
       } else reviewId=review.id;
+    }
+    if (review.source==='user_observed_video') {
+      await keepClip(mode,review.id,file).catch(()=>{
+        if (state[mode]!==workspace || !workspace.videos.includes(review)) return;
+        notify('Clip open for this session. Reselect the original file after refreshing.');
+        if (state.mode===mode && route()==='video') showVideoError('Browser storage could not keep this video. Markers and observations are saved separately.');
+      });
     }
   } catch (error) { if (mode === state.mode) showVideoError(error.message); }
   finally { videoPending = false; if (route()==='video') render(); }
@@ -308,7 +354,7 @@ function readPlan(form) {
   if (!trim('objective') || !trim('criterion') || activities.some(item=>!item.title || !item.dose)) throw new Error('Fill in an objective, check-in criterion and each activity’s name and duration.');
   if (fields.next && !validDate(fields.next)) throw new Error('Enter a valid check-in date.');
   return {id:saved?.id || id(),created:saved?.created || today(),focus:fields.focus,objective:trim('objective'),criterion:trim('criterion'),next:trim('next'),
-    activities,reflection:trim('reflection'),complete:values.has('complete')};
+    activities,reflection:trim('reflection'),complete:values.has('complete'),evidence:saved?.evidence ?? planEvidence(data(),saved?.id)};
 }
 
 const actions = {
@@ -362,16 +408,31 @@ const actions = {
   'insights-tab':({tab:value}) => {tab = value; render();},
   inspect:({field,value}) => {filterLog = {...filterInsights,[field]:value}; go('log');},
   'new-plan':() => {planId = ''; planDraft = null; render(); document.querySelector('#plan-form select')?.focus();},
+  'plan-from-video':() => {planId = ''; planDraft = null; go('plan');},
   'open-plan':({id:key}) => {planId = key; planDraft = null; render(); document.querySelector('#plan-form select')?.focus();},
   'delete-plan':({id:key}) => confirmAction('Delete this practice plan?','The saved activities and reflection will be removed from your history.','Delete plan','confirm-plan',`data-id="${e(key)}"`),
   'confirm-plan':({id:key}) => {
     data().plans = data().plans.filter(item=>item.id!==key); planId = ''; planDraft = null;
     activity('Deleted a practice plan'); persist('Practice plan deleted.'); dialog.close(); render();
   },
-  'related-clip':({id:key}) => {reviewId = key; comparison.open=false; dialog.close(); go('video');},
+  'related-clip':({id:key,time}) => {
+    if (!getReview(data(),key)) return;
+    reviewId = key;
+    reviewSeeking = time===undefined ? null : {id:key,time:Number(time)};
+    comparison.open = false;
+    dialog.close();
+    if (route()==='video') enterVideo();
+    else go('video');
+  },
   'video-compare':openComparison,
   'load-comparison-demo':loadComparisonDemo,
+  'reload-sample-review':() => loadComparisonDemo({compare:false}),
   'video-review':() => {comparison.open=false; videoError=''; render();},
+  'compare-review-frame':({id:key,side}) => {
+    const player=app.querySelector(side==='left'?'[data-clip="left"] video':'[data-clip="right"] video');
+    if (!player || player.readyState<1) return;
+    actions['related-clip']({id:key,time:player.currentTime});
+  },
   'compare-edit-markers':({id:key}) => {
     if (!getReview(data(),key)) return;
     reviewId=key; comparison.open=false; videoError=''; render();
@@ -441,9 +502,11 @@ const actions = {
   'edit-note':({id:key}) => {const review = currentReview(); const note = review?.notes.find(item=>item.id===key); if (note) noteEditor(review,note,note.time);},
   'delete-note':({id:key}) => confirmAction('Delete this observation?','The observation will also be removed from current practice evidence.','Delete observation','confirm-note',`data-id="${e(key)}"`),
   'confirm-note':({id:key}) => {updateNote(key,(notes,i)=>notes.splice(i,1)); persist('Observation deleted.'); dialog.close(); render();},
-  'delete-review':() => confirmAction('Remove this clip and its notes?','Saved observation references to this clip will be removed from the workspace.','Remove clip','confirm-review'),
+  'delete-review':() => confirmAction('Remove this clip and its notes?','The video and current observations will be removed. Saved plans keep their written evidence.','Remove clip','confirm-review'),
   'confirm-review':() => {
-    if (reviewId===storyboardId) return;
+    const review=currentReview();
+    if (!isBattingClip(review)) return;
+    if (review.source==='user_observed_video') forgetClip(state.mode,reviewId).catch(()=>notify('Browser storage could not clear the local video copy.'));
     const files = videoFiles[state.mode];
     if (files.has(reviewId)) URL.revokeObjectURL(files.get(reviewId).url);
     files.delete(reviewId); videoMemory[state.mode].delete(reviewId);
@@ -451,7 +514,7 @@ const actions = {
     if (comparison.left===reviewId) comparison.left='';
     if (comparison.right===reviewId) comparison.right='';
     data().innings.forEach(row=>{if (row.videoId===reviewId) row.videoId='';});
-    reviewId = storyboardId; videoError = ''; persist('Clip and its observations removed.'); dialog.close(); render();
+    reviewId = ''; reviewSeeking = null; videoError = ''; persist('Clip and its observations removed.'); dialog.close(); enterVideo();
   },
 };
 
@@ -493,7 +556,7 @@ document.addEventListener('change',async event => {
     } else { data().focus = selected; persist('Practice focus selected.'); }
     render();
   } else if (field.id==='review-select') {
-    reviewId = field.value; videoError = ''; render();
+    reviewId = field.value; reviewSeeking = null; videoError = ''; enterVideo();
   } else if (field.id==='video-file' && field.files.length) {
     const side=videoFileSide;
     videoFileSide='';
@@ -606,7 +669,8 @@ function launchDemoLink() {
 window.addEventListener('hashchange',() => {
   if (launchDemoLink()) return;
   if (location.hash==='#content') {app.querySelector('#content')?.focus(); return;}
-  render();
+  if (route()==='video') enterVideo();
+  else render();
   window.scrollTo(0,0);
   app.querySelector('#content').focus({preventScroll:true});
 });
@@ -614,5 +678,8 @@ document.querySelector('.skip').addEventListener('click',event=>{event.preventDe
 window.addEventListener('beforeinstallprompt',event => {event.preventDefault(); installPrompt=event;});
 window.addEventListener('appinstalled',() => {installPrompt=null; notify('CreaseCoach installed.');});
 
-if (!launchDemoLink()) render();
+if (!launchDemoLink()) {
+  if (route()==='video') enterVideo();
+  else render();
+}
 startAppUpdates();
