@@ -41,6 +41,29 @@ test('rules honor a chosen focus and classify simulated and tentative sources', 
   assert.ok(!planEvidence(demo).some(row => row.id === 'demo-note'));
 });
 
+test('repeated dismissals suggest a specific practice plan from the innings log', () => {
+  const player = makePlayer();
+  const record = (dismissal,shotCategory='')=>validateInnings({date:'2026-11-22',runs:10,balls:12,out:'yes',dismissal,shotCategory});
+  for (const [dismissal,focus] of [['LBW','lbw'],['Bowled','bowled'],['Run out','run-out'],['Stumped','stumped'],['Caught','catch-review']]) {
+    player.innings = [record(dismissal),record(dismissal)];
+    const plan = suggestPlan(player);
+    assert.equal(plan.focus,focus);
+    assert.ok(plan.reason.includes(dismissal));
+    assert.equal(plan.activities.length,2);
+    assert.notEqual(plan.criterion,'');
+  }
+  player.innings = [record('Caught','Aerial'),record('Caught','Aerial'),record('Bowled')];
+  assert.equal(suggestPlan(player).focus,'selection');
+  player.innings.push(record('Bowled'));
+  assert.equal(suggestPlan(player).focus,'review');
+  assert.match(suggestPlan(player).reason,/tied/);
+  player.innings.push(record('Bowled'));
+  assert.equal(suggestPlan(player).focus,'bowled');
+  assert.equal(suggestPlan(player,'lbw').focus,'lbw');
+  player.innings = [record('Unknown'),record('Unknown'),record('LBW')];
+  assert.equal(suggestPlan(player).focus,'review');
+});
+
 test('a changed record immediately changes current evidence', () => {
   const demo = makeDemo();
   demo.innings = demo.innings.filter(record => record.id !== 'd6');

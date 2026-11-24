@@ -45,9 +45,13 @@ The [GitHub Pages workflow](.github/workflows/pages.yml) runs tests, builds the 
 | Performance Log | View, add, edit, delete and filter innings. Log runs, balls and outcome first, with shot and session context optional. |
 | Performance Insights | See counts and denominators, inspect the underlying records, and record an assessment. Explore simulated bat motion or stream sample bat-sensor readings into a practice plan. |
 | Video Lab | Review a local MP4 or WebM, set and edit batting-phase markers, and compare two clips at the same marker. Capture frames, record timestamped observations, or use optional AI pose review. |
-| Next Session Plan | Choose a focus, review current evidence, adapt up to two activities, and save completion and reflection. |
+| Next Session Plan | Review a suggestion from the innings log or choose a practice focus. Edit the objective, up to two activities and a check-in, then save your reflection after practice. |
 
 App state uses versioned browser storage, with separate personal and demo workspaces. Export personal records as JSON from the workspace menu. Import replaces the personal workspace after confirmation. Video bytes stay in the browser session. Clip metadata and notes survive reload, and you can reopen the original file. Demo records, the SVG storyboard, and the bat sensor sequences are illustrative.
+
+### Choose a dismissal-based practice focus
+
+The innings suggestion uses the most frequent supported dismissal type with at least two recorded cases. A tie or sparse log starts with General review. If Caught leads and at least two catches have an aerial shot recorded, the app suggests Shot selection. The focus selector also offers contact review for Caught, straight defence for Bowled, line and contact review for LBW, calls and crease practice for Run out, and footwork and recovery for Stumped. Each includes a session objective, activities and a check-in. You can keep your current focus or apply the latest suggestion from the log.
 
 ### Demonstrate a future bat sensor
 

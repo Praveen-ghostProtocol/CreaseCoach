@@ -129,6 +129,61 @@ export function summarize(innings) {
 export const focuses = {
   selection:{title:'Shot selection', objective:'Make a deliberate shot choice before attempting a lofted option.', criterion:'In one set, record the intended option for each ball and explain one choice afterward.',
     activities:[['Call the option','Ten controlled feeds','Bat, tennis balls and a feeder','Before each feed, name a ground or aerial option that fits the field. Record what you actually tried.','Whether your decision changed after seeing the feed.'],['Map the gaps','5 minutes','Paper or cones','Sketch a field for a recent innings. Identify a ground option and an aerial option, then say when you would choose each.','One field placement that changes your decision.']]},
+  'catch-review':{title:'Caught · Contact and shot review',
+    objective:'Compare contact and ball direction across similar attempts at one shot.',
+    criterion:'Record six comparable attempts and identify one contact or direction pattern to review.',
+    activities:[
+      ['Same-shot contact check','Six gentle feeds','Bat, soft balls and a feeder',
+        'Pick one shot from the innings log. Ask for similar feeds and play towards a marked target.',
+        'For each feed, note the intended direction, where the ball went and whether contact felt centred or edged.'],
+      ['Compare two attempts','5 minutes','Two clips or a partner’s notes',
+        'Choose one attempt that reached the target and one that went elsewhere. Compare what you can see at contact.',
+        'Write down one visible difference and any change in the feed or intended shot.'],
+    ]},
+  bowled:{title:'Bowled · Straight defence',
+    objective:'Practise controlled defence against gentle feeds aimed towards the stumps.',
+    criterion:'Record the outcome of eight straight feeds and identify one attempt to review at bat–ball contact.',
+    activities:[
+      ['Defend straight feeds','Eight gentle feeds','Bat, soft balls, stumps and a feeder',
+        'Ask your feeder to aim towards the stumps from a consistent distance. Play a controlled defensive shot.',
+        'For each feed, note bat contact, a miss or a ball reaching the stumps.'],
+      ['Review a contact and a miss','5 minutes','Side-on video or a partner’s notes',
+        'Compare two similar feeds, one with contact and one with a miss or uncertain contact.',
+        'Note where the ball appeared relative to the blade as it passed and any difference in the feed.'],
+    ]},
+  lbw:{title:'LBW · Line and contact',
+    objective:'Recognise the delivery line and review what contacts the ball on controlled feeds.',
+    criterion:'Record the line estimate, intended response and contact outcome for eight feeds. Discuss one uncertain attempt with a partner or coach.',
+    activities:[
+      ['Read two delivery lines','Eight gentle feeds','Bat, soft balls, stumps and a feeder',
+        'Ask your feeder to mix balls aimed towards the stumps with balls outside off stump. After each feed, describe the line you saw and the response you chose.',
+        'Compare your line estimate with the feeder’s intended line. Mark uncertain feeds as uncertain.'],
+      ['Review bat or pad contact','5 minutes','Clip or a partner’s notes',
+        'Review a couple of similar feeds, pausing near contact if you have video.',
+        'Record whether contact appeared to be bat, pad, miss or unclear. Note one question to check with a coach.'],
+    ]},
+  'run-out':{title:'Run out · Calls and crease',
+    objective:'Practise a clear call with a batting partner and complete runs with the bat grounded at the crease.',
+    criterion:'Across ten scenarios, record whether the pair agreed on the call and whether the bat was grounded on completed runs.',
+    activities:[
+      ['Call and confirm','Six scenarios','Partner, soft ball, bat and two crease markers',
+        'Roll a soft ball to different marked areas. Practise calling Yes, No or Wait. Ask the partner to repeat the call before committing to a run.',
+        'Count clear, agreed calls and note where you hesitated or heard different calls.'],
+      ['Ground the bat','Four controlled singles','Partner, bat and crease markers',
+        'Start at a comfortable pace. On agreed singles, have the partner observe when you ground the bat beyond the crease.',
+        'Record whether you grounded it before turning for another run.'],
+    ]},
+  stumped:{title:'Stumped · Footwork and recovery',
+    objective:'Make a deliberate decision to stay in or step out and practise recovering to the crease after playing or missing.',
+    criterion:'Record the footwork choice, contact and crease recovery for eight gentle feeds.',
+    activities:[
+      ['Choose stay or step','Six gentle feeds','Bat, soft balls, crease marker and a feeder',
+        'Use slow feeds. Play some from the crease and step out on others when you can do so under control.',
+        'Record the choice, contact or miss, and whether you finished balanced.'],
+      ['Recover from a miss','Two slow rehearsals','Bat, crease marker and an observer',
+        'Rehearse a controlled step out and a return to the crease after a simulated miss. Ask the observer to call when the bat is grounded.',
+        'Note which movement helped you return promptly and in balance.'],
+    ]},
   contact:{title:'Contact consistency', objective:'Observe how contact varies across a short set of comparable feeds.', criterion:'Record contact impressions for six comparable feeds and flag one observation for review.',
     activities:[['Controlled contact check','Six gentle feeds','Bat, soft balls and a feeder or tee','Repeat one chosen stroke from similar feeds. Record your contact impression and where the ball goes.','Which impressions repeat across comparable feeds.'],['Review two moments','5 minutes','Phone or written notes','Compare two attempts at the same stroke using your notes or a clip you can review.','One visible or self-reported difference to discuss.']]},
   repeat:{title:'Stroke repeatability', objective:'Compare several attempts at one chosen stroke under similar conditions.', criterion:'Record five attempts with feed and shot labels and identify one observation that repeats.',
@@ -206,17 +261,40 @@ export function planEvidence(data, currentPlanId = '') {
   return result;
 }
 
+const dismissalFocus = {Caught:'catch-review',Bowled:'bowled',LBW:'lbw','Run out':'run-out',Stumped:'stumped'};
+
 export function suggestPlan(data, preferred = data.focus, currentPlanId = '') {
   const stats = summarize(data.innings);
-  const aerialCatches = data.innings.filter(row => row.out && row.dismissal === 'Caught' && row.shotCategory === 'Aerial');
-  const focus = Object.hasOwn(focuses, preferred) ? preferred : aerialCatches.length >= 2 ? 'selection' : 'review';
+  let focus = 'review';
+  let reason = 'Record another comparable set to look for a repeated dismissal type.';
+  if (Object.hasOwn(focuses,preferred)) {
+    focus = preferred;
+    reason = 'You selected this focus.';
+  } else {
+    const repeated = stats.dismissals.filter(row=>row.count>=2 && Object.hasOwn(dismissalFocus,row.label));
+    const lead = repeated[0];
+    if (lead && repeated[1]?.count===lead.count) {
+      const tied = repeated.filter(row=>row.count===lead.count).map(row=>row.label).join(', ');
+      reason = `${tied} are tied at ${lead.count} dismissals each. Choose one focus to review or start with General review.`;
+    } else if (lead) {
+      focus = dismissalFocus[lead.label];
+      reason = `The log records ${lead.count} of ${stats.outs} dismissals as ${lead.label}.`;
+      if (lead.label==='Caught') {
+        const aerial = data.innings.filter(row=>row.out && row.dismissal==='Caught' && row.shotCategory==='Aerial').length;
+        if (aerial>=2) {
+          focus = 'selection';
+          reason += ` An aerial shot was recorded for ${aerial} of those catches.`;
+        }
+      }
+    }
+  }
   const selected = focuses[focus];
   return {focus, objective:selected.objective, criterion:selected.criterion, next:'',
     activities:selected.activities.map(([title,dose],i) => ({id:`${focus}-${i+1}`,title,dose,done:false})),
     evidence:planEvidence(data,currentPlanId), uncertainty:stats.repeat
       ? 'A repeated outcome can guide what to review. Its cause remains uncertain across differing deliveries and situations.'
       : 'Comparable evidence is limited. Record what you notice under similar conditions before attributing a cause.',
-    reason:Object.hasOwn(focuses,preferred) ? 'You selected this focus.' : focus === 'selection' ? `${aerialCatches.length} recorded catches also have an aerial shot recorded.` : 'A short review set gives you more comparable observations.',
+    reason,
   };
 }
 

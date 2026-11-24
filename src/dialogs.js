@@ -70,7 +70,7 @@ export function markerEditor(review,phase,position) {
   showDialog(`${saved===undefined?'Set':'Edit'} ${phase.label.toLowerCase()} marker`,dialogForm('marker',`
     <p class="muted">${e(review.title)}</p>
     ${input('time','Time in seconds',initial,`type="number" min="0" max="${review.duration}" step="any" inputmode="decimal" required autofocus`)}
-    <p class="muted">Use the first frame where you can see this phase begin.</p>`, 'Save marker',`data-clip-id="${e(review.id)}" data-phase="${phase.key}"`));
+    <p class="muted">${e(phase.cue)}</p>`, 'Save marker',`data-clip-id="${e(review.id)}" data-phase="${phase.key}"`));
 }
 
 export function noteEditor(review, note, position, draft = null) {

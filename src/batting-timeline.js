@@ -1,7 +1,7 @@
 export const battingPhases = [
-  {key:'backlift',label:'Backlift'},
-  {key:'downswing',label:'Downswing'},
-  {key:'followThrough',label:'Follow-through'},
+  {key:'backlift',label:'Backlift',cue:'Mark the first frame where the bat starts moving back or up in preparation for the stroke.'},
+  {key:'downswing',label:'Downswing',cue:'Mark the first frame where the bat starts moving towards the ball from the top of the backlift.'},
+  {key:'followThrough',label:'Follow-through',cue:'Mark the first frame where the bat continues its path after contact or attempted contact.'},
 ];
 
 export const phaseByKey = key => battingPhases.find(phase=>phase.key===key);

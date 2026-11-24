@@ -219,6 +219,7 @@ input[type=range] { width: 100%; min-height: 32px; margin: 0; }
 .plan-aside { display: grid; gap: 13px; min-width: 0; }
 .mobile-evidence { display: none; }
 .plan-activities h3 { margin: 14px 0 8px; font-size: 1rem; }
+.plan-suggestion .btn { margin-top: 6px; }
 .activity { padding: 13px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 10px; background: #f8faf6; }
 .activity-top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
 .activity-top h4 { font-size: .97rem; }

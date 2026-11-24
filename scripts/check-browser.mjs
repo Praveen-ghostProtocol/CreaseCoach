@@ -217,6 +217,7 @@ try {
   await page.waitForFunction(()=>Math.abs(document.querySelector('#video-element').currentTime-.22)<.02);
   await page.getByRole('button',{name:'Set backlift marker'}).click();
   assert.equal(Number(await dialog.getByLabel('Time in seconds').inputValue()),.22);
+  await check(dialog,/the bat starts moving back or up/);
   await dialog.getByRole('button',{name:'Save marker'}).click();
   await saveMarker('downswing',.47);
   await saveMarker('followThrough',.86);
@@ -366,6 +367,33 @@ try {
   await dialog.getByLabel('Arm span (cm)',{exact:true}).fill('181');
   await dialog.getByRole('button',{name:'Save profile'}).click();
   await check(page.locator('.profile-dimensions .dimension-values'),/181 cm.*Self-reported/s);
+  await nav('Performance Log');
+  for (const runs of ['16','19']) {
+    await page.getByRole('button',{name:'Log an innings'}).click();
+    await dialog.getByLabel('Runs',{exact:true}).fill(runs);
+    await dialog.getByLabel('Balls faced').fill('20');
+    await dialog.getByLabel('Outcome').selectOption('yes');
+    await dialog.getByLabel('Dismissal type').selectOption('LBW');
+    await dialog.getByRole('button',{name:'Save innings'}).click();
+  }
+  await nav('Next Session Plan');
+  const practiceFocus = page.getByLabel('Practice focus');
+  await check(page.locator('.plan-suggestion'),/2 of 2 dismissals as LBW/);
+  assert.equal(await practiceFocus.inputValue(),'lbw');
+  await check(page.locator('.plan-activities'),/Read two delivery lines[\s\S]*Review bat or pad contact/);
+  await practiceFocus.selectOption('bowled');
+  await check(page.locator('.plan-activities'),/Defend straight feeds[\s\S]*Review a contact and a miss/);
+  await page.getByLabel('Next check-in date').fill('2026-12-05');
+  await page.getByRole('button',{name:'Use suggested focus'}).click();
+  assert.equal(await practiceFocus.inputValue(),'lbw');
+  assert.equal(await page.getByLabel('Next check-in date').inputValue(),'2026-12-05');
+  await page.getByLabel('Check-in criterion').fill('Record delivery line and contact outcome for eight gentle feeds.');
+  await page.getByRole('button',{name:'Save practice plan',exact:true}).click();
+  await page.reload();
+  await page.getByRole('button',{name:/LBW.*In progress/}).click();
+  assert.equal(await page.getByLabel('Check-in criterion').inputValue(),'Record delivery line and contact outcome for eight gentle feeds.');
+  await check(page.locator('.desktop-evidence'),/2 of 2 recorded dismissals were lbw/i);
+  console.log('PASS dismissal-based recommendation, manual practice option, switching back to the current suggestion and saved LBW plan');
   await page.getByRole('button',{name:'My workspace',exact:true}).click();
   await dialog.getByRole('button',{name:'Explore demo player'}).click();
   await heading('Welcome back, Arjun.');

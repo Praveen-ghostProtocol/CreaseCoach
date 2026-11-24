@@ -101,7 +101,9 @@ function evidenceRows(evidence,videos) {
 
 export function plan(data, selectedId, draft = null) {
   const saved = data.plans.find(item => item.id === selectedId) || null;
-  const suggestion = suggestPlan(data,draft?.focus || saved?.focus || data.focus,saved?.id);
+  const preferred = draft?.focus || saved?.focus || data.focus;
+  const fromLog = saved ? null : suggestPlan(data,'');
+  const suggestion = preferred ? suggestPlan(data,preferred,saved?.id) : fromLog;
   const model = draft || saved || suggestion;
   const base = focuses[model.focus];
   const history = [...data.plans].reverse();
@@ -110,16 +112,17 @@ export function plan(data, selectedId, draft = null) {
   const evidenceContext = saved?.evidence ? 'The observations and records used to create this plan.' : 'Updates as innings and observations change.';
   return `${pageHead('NEXT SESSION PLAN','What should I practise next?','Choose one focus, review the evidence and adapt the activities to your next session.',button('New plan',{action:'new-plan',glyph:'plus',variant:'outline'}))}
     <div class="plan-grid">
-      <section class="panel plan-editor">${panelHead(saved?'Saved practice plan':'Build a practice plan',saved?`Created ${dateLabel(saved.created,{day:'numeric',month:'short',year:'numeric'})}`:suggestion.reason,saved?tag(saved.complete?'Completed':'In progress',saved.complete?'lime':'gray'):'')}
+      <section class="panel plan-editor">${panelHead(saved?'Saved practice plan':'Build a practice plan',saved?`Created ${dateLabel(saved.created,{day:'numeric',month:'short',year:'numeric'})}`:'',saved?tag(saved.complete?'Completed':'In progress',saved.complete?'lime':'gray'):'')}
       <form id="plan-form"><input type="hidden" name="planId" value="${e(saved?.id || '')}">
         ${select('focus','Practice focus',Object.entries(focuses).map(([key,value])=>[key,value.title]),model.focus,'','data-plan-focus')}
+        ${fromLog ? `<div class="callout plan-suggestion" aria-label="Innings-based practice suggestion">${icon('target',18)}<div><strong>From your innings log · ${e(focuses[fromLog.focus].title)}</strong><p>${e(fromLog.reason)}</p>${model.focus!==fromLog.focus?button('Use suggested focus',{action:'apply-log-focus',variant:'outline'}):''}</div></div>` : ''}
         <details class="mobile-evidence"><summary>${saved?.evidence?'Review evidence when saved':'Review current evidence'} <span>${evidence.length} ${evidence.length===1?'source':'sources'}</span></summary>
           ${evidenceRows(evidence,data.videos)}${saved?.evidence?'':`<p class="callout">${e(suggestion.uncertainty)}</p>`}</details>
         ${area('objective','One improvement objective',model.objective,'maxlength="400" rows="2" required')}
         ${button('Talk through a problem',{action:'guided-reflection',glyph:'edit',variant:'outline',attrs:'aria-haspopup="dialog"'})}
         <div class="plan-activities"><h3>Practice activities</h3>${model.activities.map((activity,i) => {
           const [, ,equipment,instructions,observe] = base.activities[i] || [];
-          return `<article class="activity"><div class="activity-top"><span class="tile">${icon('target',17)}</span><div><h4>${e(activity.title)}</h4><p>${e(equipment)}</p></div></div><p>${e(instructions)}</p><p><strong>Observe</strong> ${e(observe)}</p>
+          return `<article class="activity"><div class="activity-top"><span class="tile">${icon('target',17)}</span><div><h4>${e(activity.title)}</h4><p>${e(equipment)}</p></div></div><p><strong>What to do</strong> ${e(instructions)}</p><p><strong>What to record</strong> ${e(observe)}</p>
             <div class="activity-edit">${input(`title-${i}`,'Activity name',activity.title,'maxlength="80" required')}${input(`dose-${i}`,'Duration or reps',activity.dose,'maxlength="80" required')}</div>
             ${saved ? `<label class="check"><input type="checkbox" name="done-${i}" ${activity.done?'checked':''}> Activity completed</label>` : ''}<details><summary>Activity review status</summary><p>Illustrative, staff and coach review pending. Adapt the setup to your available space, equipment and coaching advice.</p></details></article>`;
         }).join('')}</div>

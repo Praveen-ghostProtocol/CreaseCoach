@@ -469,6 +469,13 @@ const actions = {
   },
   inspect:({field,value}) => {filterLog = {...filterInsights,[field]:value}; go('log');},
   'new-plan':() => {planId = ''; planDraft = null; render(); document.querySelector('#plan-form select')?.focus();},
+  'apply-log-focus':() => {
+    const field = app.querySelector('#plan-form [data-plan-focus]');
+    if (!field || planId) return;
+    field.value = suggestPlan(data(),'').focus;
+    field.focus();
+    field.dispatchEvent(new Event('change',{bubbles:true}));
+  },
   'guided-reflection':reflectionDialog,
   'plan-from-video':planFromEvidence,
   'open-plan':({id:key}) => {planId = key; planDraft = null; render(); document.querySelector('#plan-form select')?.focus();},
@@ -615,10 +622,10 @@ document.addEventListener('change',async event => {
     const selected = field.value;
     const saved = data().plans.find(item=>item.id===planId);
     const objective = field.form.elements.namedItem('objective');
+    const values = new FormData(field.form);
     const keepObjective = planDraft?.keepObjective || objective.value!==objective.defaultValue;
     planDraft = null;
-    if (saved || keepObjective) {
-      const values = new FormData(field.form);
+    if (saved || keepObjective || values.get('next')) {
       planDraft = {...suggestPlan(data(),selected),next:values.get('next'),reflection:values.get('reflection'),complete:false};
       if (keepObjective) Object.assign(planDraft,{objective:objective.value,keepObjective:true});
     }
