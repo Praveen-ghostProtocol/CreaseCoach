@@ -57,16 +57,22 @@ try {
   await page.getByRole('button',{name:'Guided demo'}).click();
   const guide = page.getByRole('region',{name:'Guided demo'});
   const guideNext = guide.getByRole('button',{name:'Next step'});
+  const openNetClips = guide.getByRole('button',{name:'Open net clips',exact:true});
   const guideSpot = page.locator('.guided-spotlight');
   const initialStorage = await page.evaluate(()=>localStorage.getItem('creasecoach.workspace'));
   await check(guide,/Step 1 of 6.*Performance Log/s);
   assert.ok(await guideSpot.isVisible());
   await guideNext.click();
   await check(guide,/Step 2 of 6.*Performance Insights/s);
+  await check(page.locator('.evidence-panel'),/3 of 5 recorded dismissals were caught[\s\S]*What can we check at the nets\?[\s\S]*At downswing, where is the ball relative to the blade[\s\S]*same camera position/);
+  assert.equal(await page.locator('[data-compare-player]').count(),0);
+  const question = await page.getByText('What can we check at the nets?',{exact:true}).boundingBox();
+  const questionSpot = await guideSpot.boundingBox();
+  assert.ok(question.y>=questionSpot.y && question.y+question.height<=questionSpot.y+questionSpot.height);
   await page.keyboard.press('ArrowLeft');
   await check(guide,/Step 1 of 6.*Performance Log/s);
   await guideNext.click();
-  await guideNext.click();
+  await openNetClips.click();
   await check(guide,/Step 3 of 6.*Video Lab/s);
   await page.waitForFunction(()=>{
     const videos=[...document.querySelectorAll('[data-compare-player]')];
@@ -450,7 +456,7 @@ try {
   await page.goto(`${base}/#guided-demo`);
   await check(guide,/Step 1 of 6/);
   await guideNext.click();
-  await guideNext.click();
+  await openNetClips.click();
   await page.waitForFunction(()=>{
     const videos=[...document.querySelectorAll('[data-compare-player]')];
     return videos.length===2 && videos.every(clip=>clip.readyState>=2);

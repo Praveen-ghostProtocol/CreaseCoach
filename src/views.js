@@ -63,11 +63,14 @@ function distribution(title, counts, denominator, key, detail) {
   </section>`;
 }
 
-export function insights(data, filters, tab) {
+export function insights(data, filters, tab, netReview = null) {
   const records = filterInnings(data.innings,filters);
   const stats = summarize(records);
   const key = stats.repeat ? `pattern-${stats.repeat.label}` : 'sparse';
   const candidate = stats.repeat?.label === 'Caught' ? 'Field placement, shot intent or delivery context may help explain the catches.' : 'Delivery and match context may explain some of the repeated outcomes.';
+  const nextAction = netReview
+    ? `<h3>What can we check at the nets?</h3><p><strong>${e(netReview.question)}</strong></p><p>${e(netReview.footage)}</p>`
+    : `<h3>What to investigate next</h3><p>${stats.repeat?.label==='Caught' ? 'Record the shot you intended and where the fielders were when you chose it.' : 'Record the shot you intended and compare it with the outcome for a few similar deliveries.'}</p>${button('Open next session plan',{to:'plan',variant:'subtle',glyph:'arrow',trailing:true})}`;
   const tools = `<div class="tab-strip" aria-label="Insights tools">${button('Evidence review',{action:'insights-tab',glyph:'chart',variant:tab==='patterns'?'tab active':'tab',attrs:`data-tab="patterns" aria-pressed="${tab==='patterns'}"`})}${button('Bat Motion Explorer',{action:'insights-tab',glyph:'cube',variant:tab==='motion'?'tab active':'tab',attrs:`data-tab="motion" aria-pressed="${tab==='motion'}"`})}${button('Sensor Session',{action:'insights-tab',glyph:'activity',variant:tab==='sensor'?'tab active':'tab',attrs:`data-tab="sensor" aria-pressed="${tab==='sensor'}"`})}</div>`;
   const heading = tab==='sensor'
     ? pageHead('PERFORMANCE INSIGHTS','Sensor Session','Watch sample swing readings arrive as they would during a net session.',tag('Simulated data','violet'))
@@ -78,7 +81,7 @@ export function insights(data, filters, tab) {
       <div class="evidence-grid">
         <article><div class="tile">${icon('chart',18)}</div>${tag('Calculated','lime')}<h3>What we observed</h3><p><strong>${e(patternText(stats))}</strong></p>${stats.repeat ? button('Inspect supporting innings',{action:'inspect',variant:'subtle',glyph:'arrow',trailing:true,attrs:`data-field="dismissal" data-value="${e(stats.repeat.label)}"`}) : ''}</article>
         <article><div class="tile">${icon('info',18)}</div>${tag('Hypothesized','amber')}<h3>What might explain it</h3><p>${stats.repeat ? candidate : 'More comparable records may help you form a question worth testing.'}</p></article>
-        <article><div class="tile">${icon('target',18)}</div>${tag('Next action','gray')}<h3>What to investigate next</h3><p>${stats.repeat?.label==='Caught' ? 'Record the shot you intended and where the fielders were when you chose it.' : 'Record the shot you intended and compare it with the outcome for a few similar deliveries.'}</p>${button('Open next session plan',{to:'plan',variant:'subtle',glyph:'arrow',trailing:true})}</article>
+        <article><div class="tile">${icon('target',18)}</div>${tag('Next action','gray')}${nextAction}</article>
       </div>
       <div class="feedback-row">${select('feedback','Your assessment',feedback,data.feedback[key],'Choose your response',`data-feedback="${e(key)}"`)}<p>${data.feedback[key]==='Ask a coach' ? 'Show the supporting innings and ask which details would help interpret the outcome.' : data.feedback[key]==='This observation needs correction' ? 'Inspect the underlying innings and correct any entries in the log.' : 'Your assessment is saved with this workspace.'}</p></div>
     </section>

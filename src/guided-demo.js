@@ -10,13 +10,17 @@ const [left,right] = comparisonDemoClips;
 const comparison = {open:true,left:left.id,right:right.id,phase:'downswing',speed:.5};
 const objective = 'For ten similar feeds, mark the downswing and record whether the ball appears level with or below the blade.';
 const savedId = 'guided-practice';
+const netReview = {
+  question:'At downswing, where is the ball relative to the blade across two attempts?',
+  footage:'Use two sample net clips of the same batter, filmed from the same camera position.',
+};
 const steps = [
   {title:'Record the innings',screen:'Performance Log',target:'.record-table',
     cue:'Point to one innings. Arjun recorded the outcome and his attempted shot while he could still remember them.',view:data=>log(data,{})},
-  {title:'Find a pattern',screen:'Performance Insights',target:'.evidence-panel',
-    cue:'Point to three catches in five dismissals. The sixth innings was a not-out. The count gives Arjun a question to investigate.',view:data=>insights(data,{},'patterns')},
+  {title:'From the count to a net review',screen:'Performance Insights',target:'.evidence-panel',next:'Open net clips',
+    cue:'Point to three catches in five dismissals, then to the question for the next nets. Open the sample clips to try the check.',view:data=>insights(data,{},'patterns',netReview)},
   {title:'Compare the same phase',screen:'Video Lab',target:'.compare-panel',compact:true,
-    cue:'Two separate net attempts meet at Downswing. Point to the ball near the blade in A and below it in B.',view:(data,media)=>videoView(data,left.id,media.files,media.pending?'demo':false,comparison)},
+    cue:'Both sample net clips are paused at Downswing. Point to the ball near the blade in A and below it in B.',view:(data,media)=>videoView(data,left.id,media.files,media.pending?'demo':false,comparison)},
   {title:'Keep the observation',screen:'Video Lab',target:'.notes-panel',
     cue:'Point to the Clip B observation and its timestamp. A timestamp lets the batter reopen the frame later.',view:(data,media)=>videoView(data,right.id,media.files,media.pending?'demo':false,{open:false})},
   {title:'Choose what to practise',screen:'Next Session Plan',target:'#plan-form .field:has([name="objective"]), .desktop-evidence, .mobile-evidence',
@@ -120,7 +124,7 @@ export function mountGuidedDemo(root,index,media) {
       <div><p class="guided-step">Step ${index+1} of ${steps.length} · ${step.screen}</p><h2>${step.title}</h2><p>${step.compact && media.failed?'The clips could not load. Continue to the saved observation.':step.cue}</p></div>
       <div class="button-row compact">${step.compact?'<button type="button" class="btn outline" data-guided-play disabled>Play / reset clips</button>':''}
       ${button('Back',{action:'demo-prev',variant:'outline',attrs:index===0?'disabled':''})}
-      ${button(index===steps.length-1?'Finish demo':'Next step',{action:'demo-next',glyph:'arrow',variant:'primary',trailing:true})}
+      ${button(step.next ?? (index===steps.length-1?'Finish demo':'Next step'),{action:'demo-next',glyph:'arrow',variant:'primary',trailing:true})}
       ${iconButton('Close guided demo','close','demo-close')}</div>
     </section>`;
 
