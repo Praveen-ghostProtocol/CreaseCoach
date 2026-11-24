@@ -1,5 +1,5 @@
 import { STORAGE, decode, demoVideoSource, draftReflectionObjective, encode, events, focuses, isBattingClip, makeDemo, makePlayer, noteKinds, planEvidence, poseNoteSource, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
-import { button, dateLabel, escapeHtml as e, icon, iconButton, id, initials, input, select, timeLabel } from './ui.js';
+import { button, dateLabel, escapeHtml as e, icon, id, initials, input, select, timeLabel } from './ui.js';
 import { home, insights, log, plan } from './views.js';
 import { getReview, inspectVideo, setupPlayback, videoView } from './video.js';
 import { mountPoseReview } from './pose.js';
@@ -11,19 +11,13 @@ import { frameMeasureDialog } from './measure-frame.js';
 import { startAppUpdates } from './pwa.js';
 import { mountComparison } from './video-compare.js';
 import { mountSensorSession } from './sensor-session-view.js';
+import { guidedStepCount, mountGuidedDemo, prepareGuidedMedia } from './guided-demo.js';
 import { clipDimensionEditor, confirmAction, dialog, dialogForm, dimensionFields, inningsEditor, markerEditor, noteEditor, reflectionDialog, showDialog, showInnings, workspaceDialog } from './dialogs.js';
 
 const destinations = {
   home:['Home','Home','home'], log:['Performance Log','Log','log'], insights:['Performance Insights','Insights','chart'],
   video:['Video Lab','Video','video'], plan:['Next Session Plan','Plan','target'],
 };
-const tour = [
-  ['home','Meet the demo player','Arjun’s fictional workspace starts with six recorded innings.'],
-  ['log','Update the record','Edit an innings or add one to see how the evidence changes.'],
-  ['insights','Read the evidence','Inspect the records behind a repeated outcome.'],
-  ['video','Review a moment','Pause the practice footage or open your own clip and mark an observation.'],
-  ['plan','Choose what to practise','Edit and save one objective, then record what happened after practice.'],
-];
 const app = document.querySelector('#app');
 const toast = document.querySelector('#toast');
 const videoFiles = {demo:new Map(),personal:new Map()};
@@ -50,7 +44,9 @@ let videoError = '';
 let motionCleanup = null;
 let sensorCleanup = null;
 let installPrompt = null;
-let tourIndex = -1;
+let guidedIndex = -1;
+let guidedCleanup = null;
+let guidedMedia = null;
 let toastTimer;
 let lastTrigger;
 let pendingBackup;
@@ -172,7 +168,7 @@ async function loadComparisonDemo({compare=true,clipId=reviewId} = {}) {
     if (route()==='video') render();
     return;
   }
-  if (!demo()) {state.mode='demo';resetNavigation();tourIndex=-1;}
+  if (!demo()) {state.mode='demo';resetNavigation();}
   for (const {clip,media} of prepared) {
     const record={id:clip.id,title:clip.title,fileName:clip.fileName,size:media.size,modified:0,duration:media.duration,
       source:demoVideoSource,markers:{...clip.markers}};
@@ -222,7 +218,6 @@ function setWorkspace(mode) {
   dialog.close();
   if (mode === state.mode) return;
   state.mode = mode;
-  tourIndex = -1;
   resetNavigation();
   persist(mode==='demo'?'Demo workspace opened.':'Personal workspace opened.');
   go('home');
@@ -232,10 +227,21 @@ function navigation(current, mobile = false) {
   return Object.entries(destinations).map(([path,[label,short,glyph]]) => `<a href="#${path}" class="nav-link" ${path===current?'aria-current="page"':''}>${icon(glyph,20)}<span>${mobile?short:label}</span></a>`).join('');
 }
 
-function walkthrough() {
-  if (tourIndex < 0) return '';
-  const [,title,description] = tour[tourIndex];
-  return `<section class="tour-banner" aria-label="Guided demo"><div><strong>Demo step ${tourIndex+1} of ${tour.length} · ${title}</strong><p>${description}</p></div><div class="button-row compact">${button(tourIndex===tour.length-1?'Finish demo':'Next step',{action:'demo-next',glyph:'arrow',variant:'primary',trailing:true})}${iconButton('Close guided demo','close','demo-close')}</div></section>`;
+function closeGuidedDemo() {
+  guidedIndex = -1;
+  if (location.hash==='#guided-demo') history.replaceState(null,'','#home');
+  if (route()==='video') enterVideo();
+  else render();
+  window.scrollTo(0,0);
+  app.querySelector('[data-action="start-demo"]')?.focus({preventScroll:true});
+}
+
+function startGuidedDemo() {
+  guidedMedia ??= prepareGuidedMedia(()=>{
+    if (guidedIndex===2 || guidedIndex===3) render();
+  });
+  guidedIndex = 0;
+  render();
 }
 
 function render() {
@@ -255,6 +261,17 @@ function render() {
   motionCleanup = null;
   sensorCleanup?.();
   sensorCleanup = null;
+  guidedCleanup?.();
+  guidedCleanup = null;
+  document.body.classList.toggle('guided-active',guidedIndex>=0);
+  if (guidedIndex>=0) {
+    app.classList.remove('projection-view');
+    document.title = 'Guided demo · CreaseCoach';
+    guidedCleanup = mountGuidedDemo(app,guidedIndex,guidedMedia);
+    return;
+  }
+  guidedMedia?.dispose();
+  guidedMedia = null;
   const current = route();
   if (current!=='video' || !comparison.open) comparison.projection=false;
   const workspace = data();
@@ -270,7 +287,7 @@ function render() {
     <a class="mobile-brand" href="#home" aria-label="CreaseCoach home"><img src="./icons/mark.svg" width="32" height="32" alt=""><strong>CreaseCoach</strong></a>
     <div class="top-actions">${button('Guided demo',{action:'start-demo',glyph:'play',variant:'subtle guide-button'})}
     ${button(demo()?'Demo workspace':'My workspace',{action:'workspace',glyph:'chevron',trailing:true,variant:`outline workspace-button${demo()?' is-demo':''}`,attrs:'aria-haspopup="dialog"'})}</div></header>
-    <main id="content" tabindex="-1"${current==='video' && comparison.open?' class="compare-page"':''}>${storageIssue?`<div class="callout" role="status">${icon('info',18)}<p>${e(storageIssue)}</p></div>`:''}${walkthrough()}${pages[current]()}</main></div>
+    <main id="content" tabindex="-1"${current==='video' && comparison.open?' class="compare-page"':''}>${storageIssue?`<div class="callout" role="status">${icon('info',18)}<p>${e(storageIssue)}</p></div>`:''}${pages[current]()}</main></div>
     <nav class="mobile-nav" aria-label="Mobile navigation">${navigation(current,true)}</nav>
     <input type="file" accept=".json,application/json" id="backup-file" class="sr-only" aria-label="Choose backup file" tabindex="-1">`;
   document.title = `${destinations[current][0]} · CreaseCoach`;
@@ -420,16 +437,13 @@ const actions = {
     clearMedia('personal'); state.personal = pendingBackup; pendingBackup = undefined;
     storedDataInvalid = false; state.mode = 'personal'; resetNavigation(); persist('Personal records imported.'); dialog.close(); go('home');
   },
-  'start-demo':() => {
-    if (!demo()) setWorkspace('demo');
-    comparison.open=false;
-    tourIndex = 0; go('home');
-  },
-  'demo-close':() => {tourIndex = -1; render();},
+  'start-demo':startGuidedDemo,
+  'demo-close':closeGuidedDemo,
+  'demo-prev':() => { if (guidedIndex>0) { guidedIndex--; render(); } },
   'demo-next':() => {
-    tourIndex++;
-    if (tourIndex >= tour.length) {tourIndex = -1; render(); return;}
-    go(tour[tourIndex][0]);
+    if (guidedIndex<0) return;
+    if (++guidedIndex>=guidedStepCount) closeGuidedDemo();
+    else render();
   },
   install:async () => {
     if (installPrompt) {const prompt = installPrompt; installPrompt = null; dialog.close(); await prompt.prompt(); return;}
@@ -720,7 +734,10 @@ dialog.addEventListener('close',() => {
 });
 
 document.addEventListener('keydown',event => {
-  if (event.key==='Escape' && comparison.projection && !dialog.open) {
+  if (guidedIndex>=0 && !event.ctrlKey && !event.altKey && !event.metaKey) {
+    const action={Escape:'demo-close',ArrowLeft:'demo-prev',ArrowRight:'demo-next'}[event.key];
+    if (action) { event.preventDefault(); actions[action](); }
+  } else if (event.key==='Escape' && comparison.projection && !dialog.open) {
     setProjectionView(false);
     app.querySelector('[data-action="toggle-projection"]')?.focus();
   }
@@ -728,6 +745,7 @@ document.addEventListener('keydown',event => {
 
 function launchDemoLink() {
   const url=new URL(location.href);
+  if (url.hash==='#guided-demo') { actions['start-demo'](); return true; }
   if (url.hash!=='#video-demo' && url.searchParams.get('demo')!=='1') return false;
   url.searchParams.delete('demo');
   url.hash='video';
@@ -738,6 +756,7 @@ function launchDemoLink() {
 
 window.addEventListener('hashchange',() => {
   if (launchDemoLink()) return;
+  guidedIndex = -1;
   if (location.hash==='#content') {app.querySelector('#content')?.focus(); return;}
   if (route()==='video') enterVideo();
   else render();

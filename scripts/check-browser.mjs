@@ -53,12 +53,45 @@ try {
   await page.getByText('Published body measurement example',{exact:true}).click();
   await check(page.locator('.survey-example'),/175\.7 cm[\s\S]*38\.8 cm[\s\S]*46\.6 cm/);
   await page.getByText('Published body measurement example',{exact:true}).click();
+  await page.setViewportSize({width:1024,height:600});
   await page.getByRole('button',{name:'Guided demo'}).click();
-  await check(page.getByRole('region',{name:'Guided demo'}),/Demo step 1 of 5/);
-  await page.getByRole('button',{name:'Next step'}).click();
-  await heading('Innings log');
-  await page.getByRole('button',{name:'Close guided demo'}).click();
-  console.log('PASS home, keyboard skip and guided demo');
+  const guide = page.getByRole('region',{name:'Guided demo'});
+  const guideNext = guide.getByRole('button',{name:'Next step'});
+  const guideSpot = page.locator('.guided-spotlight');
+  const initialStorage = await page.evaluate(()=>localStorage.getItem('creasecoach.workspace'));
+  await check(guide,/Step 1 of 6.*Performance Log/s);
+  assert.ok(await guideSpot.isVisible());
+  await guideNext.click();
+  await check(guide,/Step 2 of 6.*Performance Insights/s);
+  await page.keyboard.press('ArrowLeft');
+  await check(guide,/Step 1 of 6.*Performance Log/s);
+  await guideNext.click();
+  await guideNext.click();
+  await check(guide,/Step 3 of 6.*Video Lab/s);
+  await page.waitForFunction(()=>{
+    const videos=[...document.querySelectorAll('[data-compare-player]')];
+    return videos.length===2 && videos.every((clip,i)=>clip.readyState>=2 && Math.abs(clip.currentTime-[.96,.71][i])<.04);
+  });
+  await guide.getByRole('button',{name:'Play / reset clips'}).click();
+  await page.waitForFunction(()=>[...document.querySelectorAll('[data-compare-player]')].every(clip=>!clip.paused));
+  await guide.getByRole('button',{name:'Play / reset clips'}).click();
+  const [cutout,controls,video] = await Promise.all([guideSpot.boundingBox(),guide.boundingBox(),page.locator('[data-compare-player]').last().boundingBox()]);
+  assert.ok(cutout.y+cutout.height<controls.y && video.y+video.height<=cutout.y+cutout.height,JSON.stringify({cutout,controls,video}));
+  await page.screenshot({path:`${output}/creasecoach-guided-demo.png`});
+  await guideNext.click();
+  await check(page.locator('.notes-panel'),/the ball appears below the blade/);
+  await guideNext.click();
+  await check(page.locator('.desktop-evidence'),/Evidence when saved[\s\S]*Open Net attempt 2 at 0:00.71/);
+  await guideNext.click();
+  await page.locator('#sensor-session tbody tr').nth(5).waitFor();
+  await check(guide,/Step 6 of 6[\s\S]*readings are simulated/);
+  await guide.getByRole('button',{name:'Finish demo'}).click();
+  await heading('Welcome back, Arjun.');
+  assert.equal(await page.evaluate(()=>localStorage.getItem('creasecoach.workspace')),initialStorage);
+  await page.setViewportSize({width:1440,height:980});
+  console.log('PASS six-step guided spotlight demo, projector layout, playback, seeded evidence, simulated telemetry and isolated records');
+
+  await nav('Performance Log');
 
   await page.getByRole('button',{name:'Log an innings',exact:true}).click();
   await dialog.getByLabel('Runs',{exact:true}).fill('28');
@@ -414,6 +447,16 @@ try {
   await trial.fill('mark where I make contact on six feeds');
   await dialog.getByRole('button',{name:'Use draft objective'}).click();
   assert.match(await objective.inputValue(),/mark where I make contact on six feeds/);
+  await page.goto(`${base}/#guided-demo`);
+  await check(guide,/Step 1 of 6/);
+  await guideNext.click();
+  await guideNext.click();
+  await page.waitForFunction(()=>{
+    const videos=[...document.querySelectorAll('[data-compare-player]')];
+    return videos.length===2 && videos.every(clip=>clip.readyState>=2);
+  });
+  await page.keyboard.press('Escape');
+  await heading('Welcome back, Arjun.');
   await context.setOffline(false);
   assert.deepEqual(errors,[]);
   console.log('PASS service worker, manifest, Chromium installability and offline reload including the lazy explorer');
