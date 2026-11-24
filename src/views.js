@@ -113,6 +113,7 @@ export function plan(data, selectedId, draft = null) {
         <details class="mobile-evidence"><summary>${saved?.evidence?'Review evidence when saved':'Review current evidence'} <span>${evidence.length} ${evidence.length===1?'source':'sources'}</span></summary>
           ${evidenceRows(evidence,data.videos)}${saved?.evidence?'':`<p class="callout">${e(suggestion.uncertainty)}</p>`}</details>
         ${area('objective','One improvement objective',model.objective,'maxlength="400" rows="2" required')}
+        ${button('Talk through a problem',{action:'guided-reflection',glyph:'edit',variant:'outline',attrs:'aria-haspopup="dialog"'})}
         <div class="plan-activities"><h3>Practice activities</h3>${model.activities.map((activity,i) => {
           const [, ,equipment,instructions,observe] = base.activities[i] || [];
           return `<article class="activity"><div class="activity-top"><span class="tile">${icon('target',17)}</span><div><h4>${e(activity.title)}</h4><p>${e(equipment)}</p></div></div><p>${e(instructions)}</p><p><strong>Observe</strong> ${e(observe)}</p>

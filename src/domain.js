@@ -139,6 +139,22 @@ export const focuses = {
     activities:[['Two-ball recall','5 minutes','Phone or paper','After a short set, write down the shot decision and outcome for two deliveries. Repeat once if practical.','Which facts you can recall and which fields need a note next time.']]},
 };
 
+export const reflectionLimits = {problem:140, trial:220};
+
+export function draftReflectionObjective(problem, trial) {
+  const observation = String(problem ?? '').trim();
+  const action = String(trial ?? '').trim();
+  const experiment = action.replace(/^I(?:['’]ll|\s+will)(?:\s+|$)/i,'');
+  if (!observation || observation.length>reflectionLimits.problem) {
+    throw new Error(`Describe what happened in ${reflectionLimits.problem} characters or fewer.`);
+  }
+  if (!experiment || action.length>reflectionLimits.trial) {
+    throw new Error(`Say what you will try in ${reflectionLimits.trial} characters or fewer.`);
+  }
+  const sentence = text => /[.!?]$/.test(text) ? text : `${text}.`;
+  return `${sentence(observation)} In my next practice, I’ll ${sentence(experiment)}`;
+}
+
 function makeMotion(id, label, duration, amplitude, tilt) {
   const samples = Array.from({length:41}, (_,i) => {
     const u = i / 40;

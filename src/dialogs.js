@@ -1,4 +1,4 @@
-import { categories, dismissals, events, formats, noteKinds, phases, storyboardId, today } from './domain.js';
+import { categories, dismissals, events, formats, noteKinds, phases, reflectionLimits, storyboardId, today } from './domain.js';
 import { bodyMeasures, dimensionSources } from './anthropometry.js';
 import { area, button, dateLabel, escapeHtml as e, icon, iconButton, input, rate, select, tag } from './ui.js';
 
@@ -13,6 +13,15 @@ export function showDialog(title, content) {
 
 export function dialogForm(kind, fields, submit = 'Save', attrs = '') {
   return `<form data-form="${kind}" ${attrs}>${fields}<p class="form-error" role="alert"></p><div class="button-row dialog-actions">${button('Cancel',{action:'close-dialog',variant:'outline'})}<button class="btn primary" type="submit">${e(submit)}</button></div></form>`;
+}
+
+export function reflectionDialog() {
+  showDialog('Talk through a problem',dialogForm('guided-reflection',`
+    ${area('problem','What happened that you want to work on?','',`rows="2" required autofocus aria-describedby="problem-example" maxlength="${reflectionLimits.problem}"`)}
+    <p class="muted reflection-hint" id="problem-example">For example, “I got caught trying a lofted drive.”</p>
+    ${area('trial','What will you try and record next session?','',`rows="2" required aria-describedby="trial-example" maxlength="${reflectionLimits.trial}"`)}
+    <p class="muted reflection-hint" id="trial-example">Complete “In my next practice, I’ll…” with an action you can observe or count.</p>
+    <p class="muted reflection-hint">You can edit the draft before saving your plan.</p>`,'Use draft objective'));
 }
 
 export function inningsEditor(data, record) {

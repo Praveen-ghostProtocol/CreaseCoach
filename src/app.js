@@ -1,4 +1,4 @@
-import { STORAGE, decode, demoVideoSource, encode, events, focuses, isBattingClip, makeDemo, makePlayer, noteKinds, planEvidence, poseNoteSource, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
+import { STORAGE, decode, demoVideoSource, draftReflectionObjective, encode, events, focuses, isBattingClip, makeDemo, makePlayer, noteKinds, planEvidence, poseNoteSource, storyboardId, suggestPlan, today, validDate, validWorkspace, validateInnings } from './domain.js';
 import { button, dateLabel, escapeHtml as e, icon, iconButton, id, initials, input, select, timeLabel } from './ui.js';
 import { home, insights, log, plan } from './views.js';
 import { getReview, inspectVideo, setupPlayback, videoView } from './video.js';
@@ -11,7 +11,7 @@ import { frameMeasureDialog } from './measure-frame.js';
 import { startAppUpdates } from './pwa.js';
 import { mountComparison } from './video-compare.js';
 import { mountSensorSession } from './sensor-session-view.js';
-import { clipDimensionEditor, confirmAction, dialog, dialogForm, dimensionFields, inningsEditor, markerEditor, noteEditor, showDialog, showInnings, workspaceDialog } from './dialogs.js';
+import { clipDimensionEditor, confirmAction, dialog, dialogForm, dimensionFields, inningsEditor, markerEditor, noteEditor, reflectionDialog, showDialog, showInnings, workspaceDialog } from './dialogs.js';
 
 const destinations = {
   home:['Home','Home','home'], log:['Performance Log','Log','log'], insights:['Performance Insights','Insights','chart'],
@@ -455,6 +455,7 @@ const actions = {
   },
   inspect:({field,value}) => {filterLog = {...filterInsights,[field]:value}; go('log');},
   'new-plan':() => {planId = ''; planDraft = null; render(); document.querySelector('#plan-form select')?.focus();},
+  'guided-reflection':reflectionDialog,
   'plan-from-video':planFromEvidence,
   'open-plan':({id:key}) => {planId = key; planDraft = null; render(); document.querySelector('#plan-form select')?.focus();},
   'delete-plan':({id:key}) => confirmAction('Delete this practice plan?','The saved activities and reflection will be removed from your history.','Delete plan','confirm-plan',`data-id="${e(key)}"`),
@@ -599,10 +600,15 @@ document.addEventListener('change',async event => {
   } else if (field.matches('[data-plan-focus]')) {
     const selected = field.value;
     const saved = data().plans.find(item=>item.id===planId);
-    if (saved) {
+    const objective = field.form.elements.namedItem('objective');
+    const keepObjective = planDraft?.keepObjective || objective.value!==objective.defaultValue;
+    planDraft = null;
+    if (saved || keepObjective) {
       const values = new FormData(field.form);
       planDraft = {...suggestPlan(data(),selected),next:values.get('next'),reflection:values.get('reflection'),complete:false};
-    } else { data().focus = selected; persist('Practice focus selected.'); }
+      if (keepObjective) Object.assign(planDraft,{objective:objective.value,keepObjective:true});
+    }
+    if (!saved) { data().focus = selected; persist('Practice focus selected.'); }
     render();
   } else if (field.id==='review-select') {
     reviewId = field.value; reviewSeeking = null; videoError = ''; enterVideo();
@@ -639,6 +645,14 @@ document.addEventListener('submit',event => {
   let message = '';
   try {
     switch (form.dataset.form || 'plan') {
+      case 'guided-reflection': {
+        const objective = app.querySelector('#plan-form textarea[name="objective"]');
+        if (!objective) throw new Error('Open a practice plan to use the draft objective.');
+        objective.value = draftReflectionObjective(values.problem,values.trial);
+        lastTrigger = objective;
+        dialog.close();
+        return;
+      }
       case 'marker': {
         const review=getReview(data(),form.dataset.clipId);
         if (!isBattingClip(review)) throw new Error('Open a batting clip before setting markers.');

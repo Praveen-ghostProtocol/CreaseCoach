@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { makeDemo, makePlayer, summarize, validateInnings, suggestPlan, planEvidence, decode, encode, compareSessions, sensorSessions } from '../src/domain.js';
+import { makeDemo, makePlayer, summarize, validateInnings, suggestPlan, planEvidence, decode, encode, compareSessions, sensorSessions, draftReflectionObjective } from '../src/domain.js';
 import { newSensorSession, sampleSwings } from '../src/sensor-session.js';
 
 test('deterministic example separates six innings and five dismissals', () => {
@@ -45,6 +45,18 @@ test('a changed record immediately changes current evidence', () => {
   const demo = makeDemo();
   demo.innings = demo.innings.filter(record => record.id !== 'd6');
   assert.ok(planEvidence(demo).some(row => row.text.includes('2 of 4')));
+});
+
+test('guided reflection turns the player’s observation and trial into an editable objective', () => {
+  assert.equal(draftReflectionObjective('  I got caught trying a lofted drive. ', 'call a ground or aerial option before each of ten feeds'),
+    'I got caught trying a lofted drive. In my next practice, I’ll call a ground or aerial option before each of ten feeds.');
+  assert.equal(draftReflectionObjective('The bat felt late', 'I will record where the ball meets the bat.'),
+    'The bat felt late. In my next practice, I’ll record where the ball meets the bat.');
+  assert.throws(()=>draftReflectionObjective('   ','make a note'),/Describe what happened/);
+  assert.throws(()=>draftReflectionObjective('I felt late','   '),/what you will try/);
+  assert.ok(draftReflectionObjective('x'.repeat(140),'x'.repeat(220)).length<=400);
+  assert.throws(()=>draftReflectionObjective('x'.repeat(141),'make a note'),/140/);
+  assert.throws(()=>draftReflectionObjective('I felt late','x'.repeat(221)),/220/);
 });
 
 test('versioned storage rejects invalid structure and preserves workspace separation', () => {
